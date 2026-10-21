@@ -566,3 +566,75 @@ def test_check_exist_by_downlink_picks_the_current_copy_over_last_versions_lefto
     _recorded(tmp_path, name="setup_1.1.exe", version="1.1")
 
     assert manifest.check_exist_by_downlink(tmp_path, DL, DB_SIZE, "1.1")["version"] == "1.1"
+
+
+# --- GogStash -> Shrewnut: the manifest's new name ---
+
+def _make_it_legacy(tmp_path):
+    # Back to the GogStash days, before anyone had heard of a shrew.
+    (tmp_path / manifest.MANIFEST_FILE).rename(tmp_path / manifest._LEGACY_MANIFEST_FILE)
+
+
+def test_read_manifest_still_reads_a_folder_last_written_by_gogstash(tmp_path):
+    # Otherwise every game on the NAS looks unfetched the morning after the
+    # upgrade, and the whole library gets downloaded all over again.
+    _recorded(tmp_path, version="gog-2")
+    _make_it_legacy(tmp_path)
+
+    assert manifest.read_manifest(tmp_path)["setup.exe"]["version"] == "gog-2"
+
+
+def test_read_manifest_prefers_the_shrewnut_manifest_when_both_are_there(tmp_path):
+    # A leftover the cleanup couldn't remove. It's out of date, so it loses.
+    _recorded(tmp_path, version="gog-2")
+    (tmp_path / manifest._LEGACY_MANIFEST_FILE).write_text(json.dumps({"stale.exe": {}}))
+
+    assert list(manifest.read_manifest(tmp_path)) == ["setup.exe"]
+
+
+def test_read_manifest_with_neither_file_reports_it_missing(tmp_path):
+    assert "error" in manifest.read_manifest(tmp_path)
+
+
+def test_add_file_in_a_gogstash_folder_carries_its_entries_over_and_retires_the_old_file(tmp_path):
+    _recorded(tmp_path, name="setup.exe")
+    _make_it_legacy(tmp_path)
+
+    _recorded(tmp_path, name="patch.exe")
+
+    assert _keys(tmp_path) == ["setup.exe", "patch.exe"]
+    assert not (tmp_path / manifest._LEGACY_MANIFEST_FILE).exists()
+
+
+def test_add_file_shrugs_off_an_old_manifest_it_cannot_remove(tmp_path, monkeypatch, caplog):
+    # The file downloaded and the new manifest is saved. A stubborn leftover
+    # (read-only NAS share, say) is worth a line in the log, not a failed
+    # download. And the line should say which game folder it was.
+    _recorded(tmp_path, name="setup.exe")
+    _make_it_legacy(tmp_path)
+    legacy = tmp_path / manifest._LEGACY_MANIFEST_FILE
+    real_unlink = Path.unlink
+
+    def stubborn(self, missing_ok=False):
+        if self == legacy:
+            raise PermissionError(13, "Permission denied", str(self))  # the real one names the file too
+        return real_unlink(self, missing_ok=missing_ok)
+    monkeypatch.setattr(Path, "unlink", stubborn)
+
+    with caplog.at_level("WARNING", logger="gogstash.manifest"):
+        _recorded(tmp_path, name="patch.exe")
+
+    assert _keys(tmp_path) == ["setup.exe", "patch.exe"]
+    assert legacy.exists()
+    [warning] = caplog.records
+    assert str(legacy) in warning.getMessage()
+    assert "Permission denied" in warning.getMessage()
+
+
+def test_check_exist_by_downlink_finds_a_file_recorded_by_gogstash(tmp_path):
+    # The Fetched check mark and the skip-what-you-have logic both go through
+    # here. Neither should notice the rename.
+    _recorded(tmp_path, version="gog-2")
+    _make_it_legacy(tmp_path)
+
+    assert manifest.check_exist_by_downlink(tmp_path, DL, DB_SIZE, "gog-2")["version"] == "gog-2"

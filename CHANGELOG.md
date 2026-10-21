@@ -12,6 +12,7 @@ suffix until the first stable release), not SemVer.
 - GogStash is now Shrewnut. The first time Shrewnut starts, it moves your settings, login and library cache from the `gogstash` config folder to a new `shrewnut` one, so there's no need to log in again. If GogStash is still running, Shrewnut asks you to close it and start Shrewnut again
 - Games keep downloading to the folder set in your settings, so an existing `GogStash` download folder stays in use
 - The app log is now `shrewnut.log`, in the same `logs` folder. Old `gogstash.log` files are left there as they were
+- The hidden file that tracks each game's downloads is now `.shrewnut.manifest`. Games downloaded by GogStash are still recognized and aren't downloaded again. Their `.gogstash.manifest` is replaced the next time a file in that game's folder is downloaded
 
 ## [2026.10.12.1-beta] - 2026-10-12
 

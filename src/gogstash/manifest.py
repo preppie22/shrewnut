@@ -1,10 +1,14 @@
 """Per-game manifest of downloaded files.
 
-Each game directory holds a hidden JSON file (``.gogstash.manifest``)
+Each game directory holds a hidden JSON file (``.shrewnut.manifest``)
 keyed by file path relative to the game directory. Every entry records
 the file's category, downlink, size on disk, size listed by GOG, md5
 checksum, installer version and fetch time. Entries written by older
 versions have no downlink or listed size, and no version.
+
+Folders last written by GogStash hold ``.gogstash.manifest`` instead.
+It is read while the folder has no Shrewnut manifest, and removed the
+next time a file in that folder is recorded.
 """
 
 import sys
@@ -15,7 +19,8 @@ from pathlib import Path
 import logging
 log = logging.getLogger(__name__)
 
-MANIFEST_FILE = ".gogstash.manifest"
+MANIFEST_FILE = ".shrewnut.manifest"
+_LEGACY_MANIFEST_FILE = ".gogstash.manifest"
 FILE_ATTRIBUTE_HIDDEN = 0x2
 
 class FileExists(NamedTuple):
@@ -34,6 +39,8 @@ class FileExists(NamedTuple):
 def read_manifest(game_dir: Path) -> dict:
     """Read the manifest of a game directory.
 
+    Reads the GogStash manifest when the folder has no Shrewnut one yet.
+
     Args:
         game_dir (Path): The game's download directory.
 
@@ -42,6 +49,8 @@ def read_manifest(game_dir: Path) -> dict:
         if the manifest file does not exist.
     """
     manifest_file = Path(game_dir) / MANIFEST_FILE
+    if not manifest_file.exists():
+        manifest_file = Path(game_dir) / _LEGACY_MANIFEST_FILE
     manifest = None
     try:
         with open(manifest_file, 'r') as rp:
@@ -66,6 +75,11 @@ def add_file(
     a temporary file first and then swapped in, so an interrupted write
     does not corrupt it. If writing the temporary file fails, it is
     deleted and the old manifest stays as it was.
+
+    Once the new manifest is in place, a GogStash manifest in the same
+    folder is removed, since its entries were carried over. If removing
+    it fails, that is logged and the file stays, because reads prefer the
+    Shrewnut manifest anyway.
 
     Other entries with the same downlink whose file is gone are removed in
     the same write. They are left behind when a file comes back under
@@ -118,6 +132,7 @@ def add_file(
     }
     temp_file = Path(game_dir) / f"{MANIFEST_FILE}~"
     manifest_file = Path(game_dir) / Path(MANIFEST_FILE)
+    legacy_manifest_file = Path(game_dir) / Path(_LEGACY_MANIFEST_FILE)
     try:
         with open(temp_file, 'w') as wp:
             json.dump(manifest, wp)
@@ -125,6 +140,10 @@ def add_file(
         temp_file.unlink(missing_ok=True)
         raise
     temp_file.replace(manifest_file)
+    try:
+        legacy_manifest_file.unlink(missing_ok=True)
+    except OSError as e:
+        log.warning(f"failed to remove legacy manifest: {str(e)}")
     if sys.platform == 'win32':
         import ctypes
         ctypes.windll.kernel32.SetFileAttributesW(str(manifest_file), FILE_ATTRIBUTE_HIDDEN)
