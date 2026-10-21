@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=GogStash
+Name=Shrewnut
 Comment=GOG library backup tool
-Exec=gogstash
-Icon=gogstash
+Exec=shrewnut
+Icon=shrewnut
 Categories=Game;
-X-AppImage-Name=GogStash
+X-AppImage-Name=Shrewnut

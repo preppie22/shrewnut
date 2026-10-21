@@ -50,9 +50,9 @@ RUN python3.12 -m venv /build/.venv
 RUN /build/.venv/bin/pip install ".[dev,packaging]"
 RUN /build/.venv/bin/pyinstaller --noconfirm --clean /build/packaging/pyinstaller/gogstash.spec
 RUN mkdir -p /build/AppDir/usr/bin \
-    && cp -r /build/dist/gogstash /build/AppDir/usr/bin/ \
+    && cp -r /build/dist/shrewnut /build/AppDir/usr/bin/ \
     && cp -r /build/packaging/appimage/* /build/AppDir/ \
     && chmod +x /build/AppDir/AppRun
-RUN appimagetool -u 'gh-releases-zsync|preppie22|gogstash|latest|gogstash-*x86_64.AppImage.zsync' \
-    --appimage-extract-and-run /build/AppDir /build/gogstash-x86_64.AppImage \
-    && chmod +x /build/gogstash-x86_64.AppImage
+RUN appimagetool -u 'gh-releases-zsync|preppie22|shrewnut|latest|shrewnut-*x86_64.AppImage.zsync' \
+    --appimage-extract-and-run /build/AppDir /build/shrewnut-x86_64.AppImage \
+    && chmod +x /build/shrewnut-x86_64.AppImage

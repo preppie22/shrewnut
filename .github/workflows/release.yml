@@ -11,18 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -f packaging/docker/Dockerfile -t gogstash-builder .
+      - run: docker build -f packaging/docker/Dockerfile -t shrewnut-builder .
       - run: |
-          docker create --name extract gogstash-builder
-          docker cp extract:/build/gogstash-x86_64.AppImage .
-          docker cp extract:/build/gogstash-x86_64.AppImage.zsync .
+          docker create --name extract shrewnut-builder
+          docker cp extract:/build/shrewnut-x86_64.AppImage .
+          docker cp extract:/build/shrewnut-x86_64.AppImage.zsync .
           docker rm extract
       - uses: actions/upload-artifact@v7
         with:
-          name: gogstash-appimage
+          name: shrewnut-appimage
           path: |
-            gogstash-*x86_64.AppImage
-            gogstash-*x86_64.AppImage.zsync
+            shrewnut-*x86_64.AppImage
+            shrewnut-*x86_64.AppImage.zsync
 
   build-windows:
     runs-on: windows-latest
@@ -33,11 +33,11 @@ jobs:
           python-version: "3.12"
       - run: pip install ".[packaging]"
       - run: pyinstaller --noconfirm packaging\pyinstaller\gogstash.spec
-      - run: Compress-Archive -Path dist\gogstash -DestinationPath gogstash-x86_64-windows.zip
+      - run: Compress-Archive -Path dist\shrewnut -DestinationPath shrewnut-x86_64-windows.zip
       - uses: actions/upload-artifact@v7
         with:
-          name: gogstash-windows
-          path: gogstash-x86_64-windows.zip
+          name: shrewnut-windows
+          path: shrewnut-x86_64-windows.zip
 
   release:
     needs: [build-linux, build-windows]
@@ -57,6 +57,14 @@ jobs:
             echo "::error::CHANGELOG.md has no section for [$version]"
             exit 1
           fi
+      # Bridge for AppImages installed as GogStash. Their built-in update info
+      # still asks for gogstash-*x86_64.AppImage.zsync, so ship a copy under
+      # the old names. The zsync points at the new AppImage by a relative
+      # name, and updaters that skip it get the full copy. Each update installs
+      # an AppImage carrying the new name, so this can go in a few months.
+      - run: |
+          cp shrewnut-x86_64.AppImage gogstash-x86_64.AppImage
+          cp shrewnut-x86_64.AppImage.zsync gogstash-x86_64.AppImage.zsync
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create ${{ github.ref_name }} gogstash-*x86_64.AppImage* gogstash-x86_64-windows.zip --title "GogStash ${GITHUB_REF_NAME#v}" --notes-file release_notes.md
+        run: gh release create ${{ github.ref_name }} shrewnut-*x86_64.AppImage* shrewnut-x86_64-windows.zip gogstash-x86_64.AppImage gogstash-x86_64.AppImage.zsync --title "Shrewnut ${GITHUB_REF_NAME#v}" --notes-file release_notes.md

@@ -185,7 +185,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='gogstash',
+    name='shrewnut',
     contents_directory='lib',
     debug=False,
     bootloader_ignore_signals=False,
@@ -208,5 +208,5 @@ coll = COLLECT(
     strip=sys.platform.startswith('linux'),
     upx=False,
     upx_exclude=[],
-    name='gogstash',
+    name='shrewnut',
 )
