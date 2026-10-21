@@ -5,7 +5,7 @@ def gog_product(product_id, title, slug=None, *, game_type="game", downloads=Non
                 windows=True, linux=False, osx=True):
     """Build an api.gog.com/products entry, as fetch_downloadables returns it.
 
-    Only the fields GogStash reads are filled in. ``dlcs`` takes a list of
+    Only the fields Shrewnut reads are filled in. ``dlcs`` takes a list of
     DLC IDs and is shaped like GOG's: an empty list when there are none,
     otherwise a dict with a ``products`` list.
     """

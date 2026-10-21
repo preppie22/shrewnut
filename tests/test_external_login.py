@@ -141,7 +141,7 @@ def test_used_code_warns_and_keeps_dialog_open(mock_fetch, dialog, shown_boxes):
 
 @patch("shrewnut.gog_auth.fetch_token", side_effect=requests.exceptions.SSLError("certificate verify failed"))
 def test_connection_problem_warns_with_the_real_error_type(mock_fetch, dialog, shown_boxes):
-    # The browser got through, GogStash didn't. The details name the actual
+    # The browser got through, Shrewnut didn't. The details name the actual
     # culprit so a screenshot tells antivirus apart from proxy apart from
     # GOG having a bad day.
     dialog.step2_url.setText(SUCCESS_URL)

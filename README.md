@@ -128,7 +128,7 @@ This section is for developers and tinkerers.
 shrewnut/
 ├── docs/                # README demo and screenshots
 ├── src/
-│   └── gogstash/
+│   └── shrewnut/
 │       └── ...          # GUI + GOG API client code
 ├── tests/
 ├── packaging/

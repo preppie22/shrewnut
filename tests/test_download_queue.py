@@ -3013,7 +3013,7 @@ def test_a_queue_with_nothing_to_download_doesnt_care_about_the_download_folder(
 
 @with_fake_workers
 def test_free_space_check_creates_a_download_folder_that_isnt_there_yet(tmp_path):
-    # Regression: a fresh install's ~/Downloads/GogStash doesn't exist until
+    # Regression: a fresh install's ~/Downloads/Shrewnut doesn't exist until
     # something downloads into it, and disk_usage() on a missing folder is a
     # FileNotFoundError, not a number.
     download_dir = tmp_path / "not" / "there" / "yet"

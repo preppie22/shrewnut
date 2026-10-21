@@ -369,7 +369,7 @@ def test_check_exist_follows_a_cdn_rename_to_the_file_still_sitting_under_its_ol
 
 
 def test_check_exist_does_not_trust_a_file_renamed_by_hand_just_because_its_size_matches(tmp_path):
-    # Policy, not an oversight: a file moved or renamed behind GogStash's back
+    # Policy, not an oversight: a file moved or renamed behind Shrewnut's back
     # gets downloaded again. "Something in the folder is 5 bytes long" used to
     # count as proof, and a coincidence is not a backup.
     original = tmp_path / "setup.exe"

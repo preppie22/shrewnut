@@ -174,7 +174,7 @@ def test_open_login_window_frozen_reruns_itself_with_flag_and_fresh_bootloader(l
     # swapped. From source the two mistakes cancelled out; in the AppImage
     # they'd have answered "Log in" with a second copy of the whole app.
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setenv("GOGSTASH_TEST_PASSENGER", "still here")
+    monkeypatch.setenv("SHREWNUT_TEST_PASSENGER", "still here")
 
     login_window.open_login_window()
 
@@ -184,7 +184,7 @@ def test_open_login_window_frozen_reruns_itself_with_flag_and_fresh_bootloader(l
     # and never puts the bundled libraries on its path.
     assert env.value("PYINSTALLER_RESET_ENVIRONMENT") == "1"
     # ...and the rest of our environment rides along with it.
-    assert env.value("GOGSTASH_TEST_PASSENGER") == "still here"
+    assert env.value("SHREWNUT_TEST_PASSENGER") == "still here"
     assert not login_window.login_internal_action.isEnabled()
 
 

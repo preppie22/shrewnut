@@ -13,6 +13,7 @@ suffix until the first stable release), not SemVer.
 - Games keep downloading to the folder set in your settings, so an existing `GogStash` download folder stays in use
 - The app log is now `shrewnut.log`, in the same `logs` folder. Old `gogstash.log` files are left there as they were
 - The hidden file that tracks each game's downloads is now `.shrewnut.manifest`. Games downloaded by GogStash are still recognized and aren't downloaded again. Their `.gogstash.manifest` is replaced the next time a file in that game's folder is downloaded
+- Running from source: the package and the command are now both `shrewnut`. Run `pip uninstall gogstash` before installing again
 
 ## [2026.10.12.1-beta] - 2026-10-12
 

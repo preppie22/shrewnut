@@ -74,7 +74,7 @@ qt_network_libs_linux = {
     "libbrotlidec.so.1", "libbrotlicommon.so.1",
 }
 
-# Qt plugins GogStash never loads on Linux: printing, touchscreens and
+# Qt plugins Shrewnut never loads on Linux: printing, touchscreens and
 # embedded displays, image formats other than SVG (every icon is an SVG),
 # platforms other than X11 and Wayland, the virtual keyboard, and Wayland
 # shells nobody's desktop uses.
@@ -118,7 +118,7 @@ unused_libs_windows = {
     "opengl32sw.dll", "qt6opengl.dll", "qt6network.dll"
 }
 
-# GogStash downloads through requests, so QtNetwork only gets in because
+# Shrewnut downloads through requests, so QtNetwork only gets in because
 # PySide6's package lists it. readline is for the interactive prompt, which
 # a windowed app doesn't have.
 excluded_modules = ["PySide6.QtNetwork", "readline"]
@@ -173,7 +173,7 @@ if sys.platform == 'win32':
         ):
             a.binaries.remove(entry)
 
-# Qt's own translations only load through a QTranslator, and GogStash never
+# Qt's own translations only load through a QTranslator, and Shrewnut never
 # installs one.
 for entry in a.datas.copy():
     parts = entry[0].replace('\\', '/').split('/')
