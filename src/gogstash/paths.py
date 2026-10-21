@@ -1,4 +1,4 @@
-"""Filesystem locations for GogStash configuration and downloads."""
+"""Filesystem locations for Shrewnut configuration and downloads."""
 
 import platformdirs
 from pathlib import Path
@@ -7,7 +7,7 @@ from enum import StrEnum
 _LEGACY_NAME = "gogstash"
 
 class ConfigFile(StrEnum):
-    """Names of the files kept in the GogStash config directory."""
+    """Names of the files kept in the Shrewnut config directory."""
     SETTINGS = 'settings.json'
     DB_CACHE = 'goglibrary.db'
     TOKEN = 'token.json'
@@ -15,7 +15,7 @@ class ConfigFile(StrEnum):
 class LogFile(StrEnum):
     """Names of the files kept in the ``logs`` folder of the config directory."""
     DOWNLOAD_LOG = 'downloads.log'
-    APP_LOG = 'gogstash.log'
+    APP_LOG = 'shrewnut.log'
     AUTH_LOG = 'login.log'
 
 def user_download_path() -> Path:
@@ -59,10 +59,10 @@ def migrate_config() -> bool:
 
 
 def config_path() -> Path:
-    """Return the GogStash configuration directory.
+    """Return the Shrewnut configuration directory.
 
     Returns:
-        Path: The platform-specific config directory for GogStash.
+        Path: The platform-specific config directory for Shrewnut.
     """
     return platformdirs.user_config_path(appname='shrewnut', appauthor=False)
 

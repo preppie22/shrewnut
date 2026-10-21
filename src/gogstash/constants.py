@@ -10,7 +10,7 @@ Attributes:
         seconds for token requests. These run on the UI thread, so an
         unreachable GOG shows up as offline quickly instead of freezing
         the window.
-    CLIENT_ID (str): GOG Galaxy's public OAuth client ID, which GogStash
+    CLIENT_ID (str): GOG Galaxy's public OAuth client ID, which Shrewnut
         logs in as.
     CLIENT_SECRET (str): The matching client secret. Public as well, so
         it is fine to ship.

@@ -333,7 +333,7 @@ def test_login_button_opens_a_menu_with_both_ways_in():
     assert window.login_button.menu() is window.login_menu
     assert button.popupMode() == button.ToolButtonPopupMode.InstantPopup
     assert [action.text() for action in window.login_menu.actions()] == [
-        "Log in through GogStash",
+        "Log in through Shrewnut",
         "Log in with your browser",
     ]
 
@@ -392,7 +392,7 @@ def _answer_about_page(then=None):
 
     def poll():
         box = QApplication.activeModalWidget()
-        if isinstance(box, QMessageBox) and box.windowTitle() == "About GogStash":
+        if isinstance(box, QMessageBox) and box.windowTitle() == "About Shrewnut":
             if then:
                 then(box)
             box.accept()
@@ -1522,7 +1522,7 @@ def test_main_logs_to_a_rotating_utf8_file_in_the_logs_folder(main_run, tmp_path
     [handler] = main_run.handlers
 
     assert isinstance(handler, logging.handlers.RotatingFileHandler)
-    assert Path(handler.baseFilename) == tmp_path / "logs" / "gogstash.log"
+    assert Path(handler.baseFilename) == tmp_path / "logs" / "shrewnut.log"
     assert (tmp_path / "logs").is_dir()  # made on the spot, or the handler has nowhere to open the file
     assert handler.maxBytes == 2 * 1024 * 1024
     assert handler.backupCount == 3
@@ -1542,7 +1542,7 @@ def test_main_opens_the_log_with_who_is_running_what(monkeypatch, caplog):
         run = _MainRun(monkeypatch)
     run.close()
 
-    [startup] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Starting GogStash")]
+    [startup] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Starting Shrewnut")]
     assert importlib.metadata.version("gogstash") in startup
     assert platform.platform() in startup
     assert f"Python {platform.python_version()}" in startup

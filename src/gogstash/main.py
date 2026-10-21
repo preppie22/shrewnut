@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
         self.login_process.errorOccurred.connect(self.on_webview_error)
 
         # Main Window Setup
-        self.setWindowTitle("GogStash")
+        self.setWindowTitle("Shrewnut")
         self.setWindowIcon(get_logo())
         self.resize(1024, 768)
         self.download_window = DownloadWindow(self)
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
         
         # Login
         self.login_menu = QMenu(self)
-        self.login_internal_action = QAction("Log in through GogStash", self.login_menu)
+        self.login_internal_action = QAction("Log in through Shrewnut", self.login_menu)
         self.login_internal_action.triggered.connect(self.open_login_window)
         self.login_menu.addAction(self.login_internal_action)
 
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Cache Outdated",
-                "Your library cache was built by an older version of GogStash and has been updated. "
+                "Your library cache was built by an older version of Shrewnut and has been updated. "
                 "Click Refresh to reload your library and rebuild the cache.",
                 QMessageBox.StandardButton.Ok
             )
@@ -344,7 +344,7 @@ class MainWindow(QMainWindow):
         if self.download_window.current_state == DownloadState.RUNNING:
             confirmation = QMessageBox(
                 QMessageBox.Icon.Warning,
-                "Quit GogStash",
+                "Quit Shrewnut",
                 "Are you sure you want to cancel downloads and quit?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 self,
@@ -413,7 +413,7 @@ class MainWindow(QMainWindow):
     def open_login_window(self):
         """Start the login helper in its own process.
 
-        "Log in through GogStash" stays disabled until the helper exits, and
+        "Log in through Shrewnut" stays disabled until the helper exits, and
         ``on_login_finished`` handles the result. The frozen build runs
         itself again with ``--login-helper``, with
         ``PYINSTALLER_RESET_ENVIRONMENT`` set so the helper's bootloader
@@ -474,19 +474,20 @@ class MainWindow(QMainWindow):
         """Show the about page."""
         version = importlib.metadata.version("gogstash")
         about_page = QMessageBox(self)
-        about_page.setWindowTitle("About GogStash")
+        about_page.setWindowTitle("About Shrewnut")
         about_page.setIconPixmap(get_logo().pixmap(64, 64))
         about_page.setText(f"""
-        <h3>GogStash</h3>
+        <h3>Shrewnut</h3>
+        <p><small>Formerly GogStash</small></p>
         <p>Version {version}</p>
         <p>A desktop GUI for downloading and backing up your GOG.com game library.</p>
         <p>
-        <a href="https://github.com/preppie22/gogstash">Project page</a> &middot;
-        <a href="https://github.com/preppie22/gogstash/issues">Report a bug</a>
+        <a href="https://github.com/preppie22/shrewnut">Project page</a> &middot;
+        <a href="https://github.com/preppie22/shrewnut/issues">Report a bug</a>
         </p>
         <p>Copyright &copy; 2026 Piyush Puranik<br>
-        Released under the <a href="https://github.com/preppie22/gogstash/blob/main/LICENSE">MIT License</a>.</p>
-        <p><small>GogStash is not affiliated with or endorsed by GOG.com or CD PROJEKT.
+        Released under the <a href="https://github.com/preppie22/shrewnut/blob/main/LICENSE">MIT License</a>.</p>
+        <p><small>Shrewnut is not affiliated with or endorsed by GOG.com or CD PROJEKT.
         Built with Qt via PySide6, licensed under the LGPL (see About Qt).</small></p>
         """)
         about_page.setTextFormat(Qt.TextFormat.RichText)
@@ -548,7 +549,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(
                     self,
                     "Login Error",
-                    "You signed into GOG, but GogStash could not finish "
+                    "You signed into GOG, but Shrewnut could not finish "
                     "connecting to your account. Check your internet connection "
                     "and try again."
                 )
@@ -837,10 +838,10 @@ def _log_unhandled_exception(exc_type: type[BaseException], exc_value: BaseExcep
 def main():
     """Start the application and show the main window.
 
-    Logging goes to ``gogstash.log`` in the ``logs`` folder of the config
+    Logging goes to ``shrewnut.log`` in the ``logs`` folder of the config
     directory, which rolls over at 2 MB and keeps three old files. The
     excepthook is installed once logging is set up, then the first entry
-    records the GogStash, OS, Python and Qt versions and whether this is
+    records the Shrewnut, OS, Python and Qt versions and whether this is
     the frozen build.
     """
     app = QApplication(sys.argv)
@@ -861,7 +862,7 @@ def main():
         log.info("config migrated from GogStash to Shrewnut")
     setup_download_log(log_file_path(LogFile.DOWNLOAD_LOG))
     sys.excepthook = _log_unhandled_exception
-    log.info(f"Starting GogStash {importlib.metadata.version("gogstash")} on {platform.platform()}, "
+    log.info(f"Starting Shrewnut {importlib.metadata.version("gogstash")} on {platform.platform()}, "
         f"Python {platform.python_version()}, "
         f"Qt {qVersion()}, "
         f"frozen={getattr(sys, "frozen", False)}")

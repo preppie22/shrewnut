@@ -193,7 +193,7 @@ def main():
     Both ``python -m gogstash.login_window`` and the frozen build's
     ``--login-helper`` start here. The helper is its own process, so it
     sets up its own logging, to ``login.log`` rather than the main
-    window's ``gogstash.log``.
+    window's ``shrewnut.log``.
     """
     login_window = LoginWindow()
     setup_logging(log_file_path(LogFile.AUTH_LOG))

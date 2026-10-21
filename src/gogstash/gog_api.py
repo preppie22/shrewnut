@@ -1,4 +1,4 @@
-"""Wrappers around the GOG web API endpoints used by GogStash."""
+"""Wrappers around the GOG web API endpoints used by Shrewnut."""
 
 import requests
 from typing import Callable

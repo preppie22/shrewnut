@@ -2,7 +2,7 @@
 
 A fallback for when the embedded login window doesn't work: the user logs
 in to GOG in their browser and pastes the address of the success page
-back into GogStash.
+back into Shrewnut.
 """
 
 import requests
@@ -144,9 +144,9 @@ class ExternalLoginDialog(QDialog):
                 QMessageBox.Icon.Warning,
                 "Login Error",
                 """
-                <p>GogStash couldn't reach GOG.com.</p>
+                <p>Shrewnut couldn't reach GOG.com.</p>
                 <p>If your browser can open GOG, a firewall, proxy or antivirus may be
-                blocking GogStash. Try again in a few minutes.</p>
+                blocking Shrewnut. Try again in a few minutes.</p>
                 """,
                 QMessageBox.StandardButton.Ok,
                 self,

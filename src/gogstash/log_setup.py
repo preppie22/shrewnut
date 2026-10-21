@@ -66,7 +66,7 @@ def setup_download_log(log_file: Path):
     more than the app log: it rolls over at 5 MB and keeps five old files.
     Each line is the time and the message, with nothing in between. The
     logger doesn't pass its records on to the root logger, so they stay
-    out of ``gogstash.log``. Call it once per process, since each call
+    out of ``shrewnut.log``. Call it once per process, since each call
     adds another handler and every line would be written once more.
 
     Args:

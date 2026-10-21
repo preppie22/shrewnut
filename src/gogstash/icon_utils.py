@@ -40,7 +40,7 @@ material_light = {
 }
 
 def get_logo() -> QIcon:
-    """Return the GogStash application icon.
+    """Return the Shrewnut application icon.
 
     Returns:
         QIcon: The application logo.
