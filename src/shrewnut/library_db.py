@@ -9,9 +9,9 @@ group.
 import sqlite3
 from typing import NamedTuple
 
-from gogstash import paths
-from gogstash.gog_api import fetch_owned_ids, fetch_downloadables, FetchInterrupted, AuthenticationFailure
-from gogstash import settings
+from shrewnut import paths
+from shrewnut.gog_api import fetch_owned_ids, fetch_downloadables, FetchInterrupted, AuthenticationFailure
+from shrewnut import settings
 
 from PySide6.QtCore import QThread, Signal
 

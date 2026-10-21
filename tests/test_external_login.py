@@ -7,8 +7,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from gogstash import gog_auth
-from gogstash.external_login import ExternalLoginDialog
+from shrewnut import gog_auth
+from shrewnut.external_login import ExternalLoginDialog
 
 
 SUCCESS_URL = "https://embed.gog.com/on_login_success?origin=client&code=thecode"
@@ -36,7 +36,7 @@ def shown_boxes(monkeypatch):
 
 @pytest.fixture
 def browser():
-    with patch("gogstash.external_login.QDesktopServices.openUrl", return_value=True) as open_url:
+    with patch("shrewnut.external_login.QDesktopServices.openUrl", return_value=True) as open_url:
         yield open_url
 
 
@@ -73,7 +73,7 @@ def test_paste_icon_replaces_whatever_was_in_the_field(dialog):
     assert dialog.step2_url.text() == SUCCESS_URL
 
 
-@patch("gogstash.gog_auth.fetch_token", return_value=TOKEN)
+@patch("shrewnut.gog_auth.fetch_token", return_value=TOKEN)
 def test_log_in_saves_token_and_accepts(mock_fetch, dialog, shown_boxes):
     dialog.step2_url.setText(SUCCESS_URL)
 
@@ -85,7 +85,7 @@ def test_log_in_saves_token_and_accepts(mock_fetch, dialog, shown_boxes):
     assert shown_boxes == []
 
 
-@patch("gogstash.gog_auth.fetch_token", return_value=TOKEN)
+@patch("shrewnut.gog_auth.fetch_token", return_value=TOKEN)
 def test_log_in_ignores_whitespace_around_pasted_address(mock_fetch, dialog, shown_boxes):
     # Address bars like to throw in a free space or newline with every copy.
     dialog.step2_url.setText(f"  {SUCCESS_URL} \n")
@@ -96,7 +96,7 @@ def test_log_in_ignores_whitespace_around_pasted_address(mock_fetch, dialog, sho
     assert dialog.result() == QDialog.DialogCode.Accepted
 
 
-@patch("gogstash.gog_auth.fetch_token", return_value=TOKEN)
+@patch("shrewnut.gog_auth.fetch_token", return_value=TOKEN)
 def test_enter_in_paste_field_logs_in_instead_of_opening_browser(mock_fetch, dialog, browser, shown_boxes):
     # Regression: Open in Browser grabbed the default button role when it
     # got focus at startup and never gave it back, so pasting the address
@@ -110,7 +110,7 @@ def test_enter_in_paste_field_logs_in_instead_of_opening_browser(mock_fetch, dia
     browser.assert_not_called()
 
 
-@patch("gogstash.gog_auth.fetch_token")
+@patch("shrewnut.gog_auth.fetch_token")
 def test_wrong_address_warns_without_asking_gog(mock_fetch, dialog, shown_boxes):
     dialog.step2_url.setText(gog_auth.build_auth_uri())
 
@@ -123,7 +123,7 @@ def test_wrong_address_warns_without_asking_gog(mock_fetch, dialog, shown_boxes)
     assert dialog.isVisible()
 
 
-@patch("gogstash.gog_auth.fetch_token", side_effect=gog_auth.AuthenticationFailure("Invalid authorization code"))
+@patch("shrewnut.gog_auth.fetch_token", side_effect=gog_auth.AuthenticationFailure("Invalid authorization code"))
 def test_used_code_warns_and_keeps_dialog_open(mock_fetch, dialog, shown_boxes):
     # Regression: accept() used to run after the except blocks too, so the
     # dialog told people to start again from Step 1 and then vanished,
@@ -139,7 +139,7 @@ def test_used_code_warns_and_keeps_dialog_open(mock_fetch, dialog, shown_boxes):
     assert gog_auth._load_token() is None
 
 
-@patch("gogstash.gog_auth.fetch_token", side_effect=requests.exceptions.SSLError("certificate verify failed"))
+@patch("shrewnut.gog_auth.fetch_token", side_effect=requests.exceptions.SSLError("certificate verify failed"))
 def test_connection_problem_warns_with_the_real_error_type(mock_fetch, dialog, shown_boxes):
     # The browser got through, GogStash didn't. The details name the actual
     # culprit so a screenshot tells antivirus apart from proxy apart from
@@ -163,7 +163,7 @@ LIVE_SUCCESS_URL = f"https://embed.gog.com/on_login_success?origin=client&code={
 
 
 def _login_log(caplog):
-    return [(r.levelname, r.getMessage()) for r in caplog.records if r.name == "gogstash.external_login"]
+    return [(r.levelname, r.getMessage()) for r in caplog.records if r.name == "shrewnut.external_login"]
 
 
 @pytest.mark.parametrize("failure", [
@@ -173,8 +173,8 @@ def _login_log(caplog):
 def test_a_failed_login_logs_why_but_never_the_code(dialog, shown_boxes, caplog, failure):
     dialog.step2_url.setText(LIVE_SUCCESS_URL)
 
-    with caplog.at_level("INFO", logger="gogstash.external_login"), \
-            patch("gogstash.gog_auth.fetch_token", side_effect=failure):
+    with caplog.at_level("INFO", logger="shrewnut.external_login"), \
+            patch("shrewnut.gog_auth.fetch_token", side_effect=failure):
         dialog.step2_login_button.click()
 
     [(level, message)] = _login_log(caplog)
@@ -185,8 +185,8 @@ def test_a_failed_login_logs_why_but_never_the_code(dialog, shown_boxes, caplog,
 def test_a_browser_login_that_works_says_so(dialog, shown_boxes, caplog):
     dialog.step2_url.setText(LIVE_SUCCESS_URL)
 
-    with caplog.at_level("INFO", logger="gogstash.external_login"), \
-            patch("gogstash.gog_auth.fetch_token", return_value=TOKEN):
+    with caplog.at_level("INFO", logger="shrewnut.external_login"), \
+            patch("shrewnut.gog_auth.fetch_token", return_value=TOKEN):
         dialog.step2_login_button.click()
 
     [(level, message)] = _login_log(caplog)
@@ -199,7 +199,7 @@ def test_the_wrong_page_is_logged_by_where_it_was(dialog, shown_boxes, caplog):
     # alone gives it away.
     dialog.step2_url.setText("https://www.gog.com/en/games?sort=popular")
 
-    with caplog.at_level("INFO", logger="gogstash.external_login"):
+    with caplog.at_level("INFO", logger="shrewnut.external_login"):
         dialog.step2_login_button.click()
 
     [(level, message)] = _login_log(caplog)
@@ -217,7 +217,7 @@ def test_a_mangled_paste_never_puts_a_live_code_in_the_log(dialog, shown_boxes, 
     # still good. Echoing the paste, even just its path, would hand it over.
     dialog.step2_url.setText(pasted)
 
-    with caplog.at_level("INFO", logger="gogstash.external_login"):
+    with caplog.at_level("INFO", logger="shrewnut.external_login"):
         dialog.step2_login_button.click()
 
     assert all(LIVE_CODE not in message for _, message in _login_log(caplog))

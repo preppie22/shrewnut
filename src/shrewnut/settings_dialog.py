@@ -34,8 +34,8 @@ from PySide6.QtGui import (
     QAction,
     QIcon
 )
-from gogstash import settings
-from gogstash import library_db
+from shrewnut import settings
+from shrewnut import library_db
 
 import logging
 log = logging.getLogger(__name__)

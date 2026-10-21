@@ -8,7 +8,7 @@ Attributes:
 import json
 from typing import Any
 
-from gogstash import paths
+from shrewnut import paths
 
 import logging
 log = logging.getLogger(__name__)

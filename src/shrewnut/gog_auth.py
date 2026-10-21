@@ -13,8 +13,8 @@ from enum import StrEnum
 from urllib.parse import urlsplit, parse_qs
 import logging
 
-from gogstash import paths
-from gogstash.constants import (
+from shrewnut import paths
+from shrewnut.constants import (
     HTTP_TIMEOUT_SHORT,
     CLIENT_ID,
     CLIENT_SECRET

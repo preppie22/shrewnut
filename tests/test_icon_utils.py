@@ -4,10 +4,10 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import QSize, Qt
 
-from gogstash.icon_utils import get_icon, material_dark, material_light, status_indicator
+from shrewnut.icon_utils import get_icon, material_dark, material_light, status_indicator
 
 
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_get_icon_returns_a_non_null_icon_for_light_scheme(mock_app_cls):
     mock_app_cls.instance.return_value.styleHints.return_value.colorScheme.return_value = Qt.ColorScheme.Light
 
@@ -16,7 +16,7 @@ def test_get_icon_returns_a_non_null_icon_for_light_scheme(mock_app_cls):
     assert not icon.isNull()
 
 
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_get_icon_returns_a_non_null_icon_for_dark_scheme(mock_app_cls):
     mock_app_cls.instance.return_value.styleHints.return_value.colorScheme.return_value = Qt.ColorScheme.Dark
 
@@ -25,8 +25,8 @@ def test_get_icon_returns_a_non_null_icon_for_dark_scheme(mock_app_cls):
     assert not icon.isNull()
 
 
-@patch("gogstash.icon_utils.QIcon")
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QIcon")
+@patch("shrewnut.icon_utils.QApplication")
 def test_get_icon_loads_from_the_dark_folder_for_dark_scheme(mock_app_cls, mock_qicon_cls):
     mock_app_cls.instance.return_value.styleHints.return_value.colorScheme.return_value = Qt.ColorScheme.Dark
 
@@ -37,8 +37,8 @@ def test_get_icon_loads_from_the_dark_folder_for_dark_scheme(mock_app_cls, mock_
     assert "light" not in used_path.parts
 
 
-@patch("gogstash.icon_utils.QIcon")
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QIcon")
+@patch("shrewnut.icon_utils.QApplication")
 def test_get_icon_loads_from_the_light_folder_for_light_scheme(mock_app_cls, mock_qicon_cls):
     mock_app_cls.instance.return_value.styleHints.return_value.colorScheme.return_value = Qt.ColorScheme.Light
 
@@ -67,7 +67,7 @@ def shape_of(image):
 
 @pytest.mark.parametrize("scheme", [Qt.ColorScheme.Light, Qt.ColorScheme.Dark])
 @pytest.mark.parametrize("state", STATES + ["mystery"])
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_status_indicator_paints_something_for_every_state(mock_app_cls, state, scheme):
     # A shape that throws halfway through painting takes the whole app down
     # with it (a QPainter that never ends is a segfault waiting to happen),
@@ -78,7 +78,7 @@ def test_status_indicator_paints_something_for_every_state(mock_app_cls, state, 
     assert len(shape_of(image)) > 10
 
 
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_every_state_has_its_own_shape_regardless_of_color(mock_app_cls):
     shapes = {state: shape_of(draw_indicator(mock_app_cls, Qt.ColorScheme.Dark, state)) for state in STATES}
 
@@ -87,7 +87,7 @@ def test_every_state_has_its_own_shape_regardless_of_color(mock_app_cls):
             assert shapes[first] != shapes[second], f"{first} and {second} are the same shape"
 
 
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_unknown_state_falls_back_to_the_queued_ring(mock_app_cls):
     ring = draw_indicator(mock_app_cls, Qt.ColorScheme.Dark, "base")
 
@@ -96,7 +96,7 @@ def test_unknown_state_falls_back_to_the_queued_ring(mock_app_cls):
 
 
 @pytest.mark.parametrize("state", STATES)
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_status_indicator_uses_the_palette_of_the_active_scheme(mock_app_cls, state):
     for scheme, palette in [(Qt.ColorScheme.Dark, material_dark), (Qt.ColorScheme.Light, material_light)]:
         image = draw_indicator(mock_app_cls, scheme, state)
@@ -106,7 +106,7 @@ def test_status_indicator_uses_the_palette_of_the_active_scheme(mock_app_cls, st
         assert palette[state].rgb() in drawn
 
 
-@patch("gogstash.icon_utils.QApplication")
+@patch("shrewnut.icon_utils.QApplication")
 def test_status_indicator_looks_different_in_dark_and_light(mock_app_cls):
     # Blue on purpose: green and red happen to be the same in both schemes,
     # which makes for a very boring comparison.

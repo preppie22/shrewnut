@@ -39,8 +39,8 @@ if __name__ == "__main__":
             os.environ.pop("XDG_DATA_DIRS", None)
 
     if "--login-helper" in sys.argv:
-        from gogstash.login_window import main
+        from shrewnut.login_window import main
         main()
     else:
-        from gogstash.main import main
+        from shrewnut.main import main
         main()

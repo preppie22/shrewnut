@@ -3,8 +3,8 @@ from unittest.mock import patch
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
 
-from gogstash import library_db, paths, settings
-from gogstash.settings_dialog import SettingsDialog
+from shrewnut import library_db, paths, settings
+from shrewnut.settings_dialog import SettingsDialog
 
 
 SAVED_SETTINGS = {
@@ -85,7 +85,7 @@ def untick_every_category(dialog):
         checkbox.setChecked(False)
 
 
-@patch("gogstash.settings_dialog.QMessageBox.warning")
+@patch("shrewnut.settings_dialog.QMessageBox.warning")
 def test_save_refuses_when_no_download_category_is_ticked(mock_warning):
     # Nothing ticked means every game is a 0 byte download that "finishes"
     # instantly. Very fast, very useless.
@@ -102,7 +102,7 @@ def test_save_refuses_when_no_download_category_is_ticked(mock_warning):
     assert dialog.result() != dialog.DialogCode.Accepted
 
 
-@patch("gogstash.settings_dialog.QMessageBox.warning")
+@patch("shrewnut.settings_dialog.QMessageBox.warning")
 def test_save_lists_every_problem_in_one_warning(mock_warning):
     # One dialog with both complaints, not a game of whack-a-mole where
     # fixing the platforms reveals the categories were empty too.
@@ -206,7 +206,7 @@ def test_restore_defaults_unchecks_bonus_content_when_default_is_false():
     assert dialog.download_categories_check["bonus_content"].isChecked() == settings.DEFAULT_SETTINGS["bonus_content"]
 
 
-@patch("gogstash.settings_dialog.QFileDialog.getExistingDirectory")
+@patch("shrewnut.settings_dialog.QFileDialog.getExistingDirectory")
 def test_browse_updates_download_path_when_a_folder_is_chosen(mock_get_dir):
     mock_get_dir.return_value = "/chosen/folder"
     dialog = SettingsDialog()
@@ -216,7 +216,7 @@ def test_browse_updates_download_path_when_a_folder_is_chosen(mock_get_dir):
     assert dialog.download_edit_path.text() == "/chosen/folder"
 
 
-@patch("gogstash.settings_dialog.QFileDialog.getExistingDirectory")
+@patch("shrewnut.settings_dialog.QFileDialog.getExistingDirectory")
 def test_browse_does_not_clear_path_when_dialog_is_cancelled(mock_get_dir):
     mock_get_dir.return_value = ""  # Qt returns "" when the user cancels the picker
     dialog = SettingsDialog()
@@ -227,7 +227,7 @@ def test_browse_does_not_clear_path_when_dialog_is_cancelled(mock_get_dir):
     assert dialog.download_edit_path.text() == "/existing/path"
 
 
-@patch("gogstash.settings_dialog.QMessageBox.exec")
+@patch("shrewnut.settings_dialog.QMessageBox.exec")
 def test_clear_cache_button_removes_the_active_db_file_when_confirmed(mock_exec):
     mock_exec.return_value = QMessageBox.StandardButton.Yes
     library_db.update_cache([])  # creates an (empty) db file
@@ -240,7 +240,7 @@ def test_clear_cache_button_removes_the_active_db_file_when_confirmed(mock_exec)
     assert not db_path.exists()
 
 
-@patch("gogstash.settings_dialog.QMessageBox.exec")
+@patch("shrewnut.settings_dialog.QMessageBox.exec")
 def test_clear_cache_button_keeps_db_file_when_cancelled(mock_exec):
     mock_exec.return_value = QMessageBox.StandardButton.No
     library_db.update_cache([])  # creates an (empty) db file
@@ -342,7 +342,7 @@ def test_a_mangled_platform_setting_opens_with_the_defaults_ticked():
     assert ticked == settings.DEFAULT_SETTINGS["platform_filter"]
 
 
-@patch("gogstash.settings_dialog.QMessageBox.warning")
+@patch("shrewnut.settings_dialog.QMessageBox.warning")
 def test_save_refuses_when_no_platform_is_ticked(mock_warning):
     # Every game at 0 bytes is technically a very fast library. Not saved.
     settings.update_settings(SAVED_SETTINGS)  # platform_filter: ["Linux"]
@@ -363,21 +363,21 @@ def test_saved_settings_go_into_the_log(caplog):
     dialog.download_edit_path.setText("/new/path")
     dialog.download_concurrency_edit.setValue(7)
 
-    with caplog.at_level("INFO", logger="gogstash.settings_dialog"):
+    with caplog.at_level("INFO", logger="shrewnut.settings_dialog"):
         click(dialog, QDialogButtonBox.StandardButton.Save)
 
-    [message] = [r.getMessage() for r in caplog.records if r.name == "gogstash.settings_dialog"]
+    [message] = [r.getMessage() for r in caplog.records if r.name == "shrewnut.settings_dialog"]
     assert "/new/path" in message
     assert "7" in message
 
 
-@patch("gogstash.settings_dialog.QMessageBox.warning")
+@patch("shrewnut.settings_dialog.QMessageBox.warning")
 def test_settings_that_were_refused_arent_logged_as_saved(mock_warning, caplog):
     dialog = SettingsDialog()
     for checkbox in dialog.download_categories_check.values():
         checkbox.setChecked(False)
 
-    with caplog.at_level("INFO", logger="gogstash.settings_dialog"):
+    with caplog.at_level("INFO", logger="shrewnut.settings_dialog"):
         click(dialog, QDialogButtonBox.StandardButton.Save)
 
-    assert [r for r in caplog.records if r.name == "gogstash.settings_dialog"] == []
+    assert [r for r in caplog.records if r.name == "shrewnut.settings_dialog"] == []

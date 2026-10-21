@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from gogstash import manifest
+from shrewnut import manifest
 
 DL = "https://api.gog.com/products/111/downlink/installer/en1installer0"
 DB_SIZE = 1234
@@ -89,7 +89,7 @@ def test_add_file_on_a_full_disk_raises_and_leaves_the_old_manifest_alone(tmp_pa
         fp.write('{"a.exe": {"categ')
         raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
 
-    with patch("gogstash.manifest.json.dump", disk_fills_up_mid_dump), pytest.raises(OSError) as raised:
+    with patch("shrewnut.manifest.json.dump", disk_fills_up_mid_dump), pytest.raises(OSError) as raised:
         manifest.add_file(tmp_path, game_file, category="installers", downlink=DL, db_size=DB_SIZE, checksum="new", version=None, timestamp=2.0)
 
     assert raised.value.errno == errno.ENOSPC
@@ -621,7 +621,7 @@ def test_add_file_shrugs_off_an_old_manifest_it_cannot_remove(tmp_path, monkeypa
         return real_unlink(self, missing_ok=missing_ok)
     monkeypatch.setattr(Path, "unlink", stubborn)
 
-    with caplog.at_level("WARNING", logger="gogstash.manifest"):
+    with caplog.at_level("WARNING", logger="shrewnut.manifest"):
         _recorded(tmp_path, name="patch.exe")
 
     assert _keys(tmp_path) == ["setup.exe", "patch.exe"]

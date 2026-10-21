@@ -45,7 +45,7 @@ def get_logo() -> QIcon:
     Returns:
         QIcon: The application logo.
     """
-    return QIcon(str(resources.files('gogstash') / 'icons' / 'gogstash.svg'))
+    return QIcon(str(resources.files('shrewnut') / 'icons' / 'shrewnut.svg'))
 
 def get_icon(icon_file: str) -> QIcon:
     """Load an icon matching the current color scheme.
@@ -59,7 +59,7 @@ def get_icon(icon_file: str) -> QIcon:
     """
     color_scheme =  QApplication.instance().styleHints().colorScheme()
     color_folder = 'dark' if color_scheme == Qt.ColorScheme.Dark else 'light'
-    icon_path = str(resources.files('gogstash') / 'icons' / color_folder / icon_file)
+    icon_path = str(resources.files('shrewnut') / 'icons' / color_folder / icon_file)
     return QIcon(icon_path)
 
 def status_indicator(color: str = "") -> QIcon:

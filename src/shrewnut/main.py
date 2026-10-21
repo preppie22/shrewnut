@@ -49,17 +49,17 @@ from PySide6.QtCore import (
     qVersion
 )
 
-from gogstash import gog_auth
-from gogstash.login_window import ExitCode
-from gogstash.external_login import ExternalLoginDialog
-from gogstash import library_db
-from gogstash.settings_dialog import SettingsDialog
-from gogstash.settings import read_setting, update_setting
-from gogstash.manifest import read_manifest, check_exist_by_downlink
-from gogstash.download_window import DownloadWindow, UserRole, DownloadState
-from gogstash.icon_utils import get_icon, get_logo, status_indicator
-from gogstash.paths import LogFile, log_file_path, migrate_config
-from gogstash.log_setup import setup_logging, setup_download_log
+from shrewnut import gog_auth
+from shrewnut.login_window import ExitCode
+from shrewnut.external_login import ExternalLoginDialog
+from shrewnut import library_db
+from shrewnut.settings_dialog import SettingsDialog
+from shrewnut.settings import read_setting, update_setting
+from shrewnut.manifest import read_manifest, check_exist_by_downlink
+from shrewnut.download_window import DownloadWindow, UserRole, DownloadState
+from shrewnut.icon_utils import get_icon, get_logo, status_indicator
+from shrewnut.paths import LogFile, log_file_path, migrate_config
+from shrewnut.log_setup import setup_logging, setup_download_log
 
 log = logging.getLogger(__name__)
 
@@ -418,7 +418,7 @@ class MainWindow(QMainWindow):
         itself again with ``--login-helper``, with
         ``PYINSTALLER_RESET_ENVIRONMENT`` set so the helper's bootloader
         sets up the bundled libraries again. From source it runs
-        ``gogstash.login_window`` as a module.
+        ``shrewnut.login_window`` as a module.
         """
         self.login_internal_action.setEnabled(False)
         if getattr(sys, "frozen", False):
@@ -427,7 +427,7 @@ class MainWindow(QMainWindow):
             self.login_process.setProcessEnvironment(env)
             self.login_process.start(sys.executable, ["--login-helper"])
         else:
-            self.login_process.start(sys.executable, ["-m","gogstash.login_window"])
+            self.login_process.start(sys.executable, ["-m","shrewnut.login_window"])
 
     def open_external_login(self):
         """Show the browser login dialog and update the login indicator on success."""
@@ -472,7 +472,7 @@ class MainWindow(QMainWindow):
 
     def open_about_page(self):
         """Show the about page."""
-        version = importlib.metadata.version("gogstash")
+        version = importlib.metadata.version("shrewnut")
         about_page = QMessageBox(self)
         about_page.setWindowTitle("About Shrewnut")
         about_page.setIconPixmap(get_logo().pixmap(64, 64))
@@ -862,7 +862,7 @@ def main():
         log.info("config migrated from GogStash to Shrewnut")
     setup_download_log(log_file_path(LogFile.DOWNLOAD_LOG))
     sys.excepthook = _log_unhandled_exception
-    log.info(f"Starting Shrewnut {importlib.metadata.version("gogstash")} on {platform.platform()}, "
+    log.info(f"Starting Shrewnut {importlib.metadata.version("shrewnut")} on {platform.platform()}, "
         f"Python {platform.python_version()}, "
         f"Qt {qVersion()}, "
         f"frozen={getattr(sys, "frozen", False)}")

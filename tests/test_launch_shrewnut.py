@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 
-LAUNCHER = Path(__file__).parents[1] / "packaging" / "pyinstaller" / "launch_gogstash.py"
+LAUNCHER = Path(__file__).parents[1] / "packaging" / "pyinstaller" / "launch_shrewnut.py"
 
 # Everything the launcher touches. Registering each one with monkeypatch,
 # set or not, means whatever the launcher does to them gets undone after.
@@ -35,13 +35,13 @@ def frozen_linux(monkeypatch, tmp_path, clean_env):
 
 
 def run_launcher(monkeypatch, *args):
-    monkeypatch.setattr(sys, "argv", ["gogstash", *args])
+    monkeypatch.setattr(sys, "argv", ["shrewnut", *args])
     runpy.run_path(str(LAUNCHER), run_name="__main__")
 
 
-@patch("gogstash.main.main")
-@patch("gogstash.login_window.setup_logging")
-@patch("gogstash.login_window.LoginWindow")
+@patch("shrewnut.main.main")
+@patch("shrewnut.login_window.setup_logging")
+@patch("shrewnut.login_window.LoginWindow")
 def test_login_helper_flag_runs_helper_and_exits_with_its_code(mock_login_cls, mock_setup, mock_main, monkeypatch, clean_env):
     mock_login_cls.return_value.start_helper.return_value = 75
 
@@ -59,10 +59,10 @@ def test_login_helper_flag_runs_helper_and_exits_with_its_code(mock_login_cls, m
     mock_main.assert_not_called()
 
 
-@patch("gogstash.main.main")
-@patch("gogstash.login_window.LoginWindow")
+@patch("shrewnut.main.main")
+@patch("shrewnut.login_window.LoginWindow")
 def test_no_flag_starts_the_app(mock_login_cls, mock_main, monkeypatch, clean_env):
-    # Regression: `from gogstash import main` fetched the module, and
+    # Regression: `from shrewnut import main` fetched the module, and
     # modules make poor apps. "'module' object is not callable".
     run_launcher(monkeypatch)
 
@@ -70,7 +70,7 @@ def test_no_flag_starts_the_app(mock_login_cls, mock_main, monkeypatch, clean_en
     mock_login_cls.assert_not_called()
 
 
-@patch("gogstash.main.main")
+@patch("shrewnut.main.main")
 def test_frozen_linux_scrubs_bundle_paths_before_anything_starts(mock_main, monkeypatch, frozen_linux):
     bundle = frozen_linux
     monkeypatch.setenv("LD_LIBRARY_PATH", str(bundle))
@@ -92,7 +92,7 @@ def test_frozen_linux_scrubs_bundle_paths_before_anything_starts(mock_main, monk
     mock_main.assert_called_once_with()
 
 
-@patch("gogstash.main.main")
+@patch("shrewnut.main.main")
 def test_frozen_linux_drops_variables_that_only_ever_pointed_at_the_bundle(mock_main, monkeypatch, frozen_linux):
     bundle = frozen_linux
     monkeypatch.setenv("LD_LIBRARY_PATH", str(bundle))
@@ -106,7 +106,7 @@ def test_frozen_linux_drops_variables_that_only_ever_pointed_at_the_bundle(mock_
     assert "XDG_DATA_DIRS" not in os.environ
 
 
-@patch("gogstash.main.main")
+@patch("shrewnut.main.main")
 def test_from_source_leaves_environment_alone(mock_main, monkeypatch, clean_env):
     monkeypatch.delattr(sys, "frozen", raising=False)
     monkeypatch.setenv("QT_PLUGIN_PATH", "/the/users/own/plugins")

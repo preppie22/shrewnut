@@ -27,7 +27,7 @@ from PySide6.QtGui import (
     QDesktopServices
 )
 
-from gogstash import gog_auth
+from shrewnut import gog_auth
 
 log = logging.getLogger(__name__)
 

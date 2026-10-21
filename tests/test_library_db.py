@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from gogstash import gog_api, library_db, paths, settings
+from shrewnut import gog_api, library_db, paths, settings
 from tests.fakes import gog_product
 
 FAKE_DOWNLOADS = {
@@ -628,8 +628,8 @@ def test_clear_cache_keeps_only_the_most_recently_cleared_backup():
 
 # --- LibraryFetchThread ---
 
-@patch("gogstash.library_db.fetch_downloadables")
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_downloadables")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_bootstraps_when_db_empty(mock_fetch_owned_ids, mock_fetch_downloadables):
     mock_fetch_owned_ids.return_value = {111}
     mock_fetch_downloadables.return_value = [FAKE_PRODUCT]
@@ -652,8 +652,8 @@ def test_library_fetch_thread_bootstraps_when_db_empty(mock_fetch_owned_ids, moc
     ]
 
 
-@patch("gogstash.library_db.fetch_downloadables")
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_downloadables")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_reads_cache_without_hitting_network(mock_fetch_owned_ids, mock_fetch_downloadables):
     library_db.update_cache([FAKE_PRODUCT])
     thread = library_db.LibraryFetchThread()
@@ -668,8 +668,8 @@ def test_library_fetch_thread_reads_cache_without_hitting_network(mock_fetch_own
     assert received[0][0]["product_id"] == 111
 
 
-@patch("gogstash.library_db.fetch_downloadables")
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_downloadables")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_force_refreshes_a_full_cache(mock_fetch_owned_ids, mock_fetch_downloadables):
     # The Refresh button. A cache full of stale titles is not an excuse to
     # skip asking GOG what you actually own.
@@ -686,7 +686,7 @@ def test_library_fetch_thread_force_refreshes_a_full_cache(mock_fetch_owned_ids,
     assert {p["product_id"] for p in received[0]} == {111, 222}
 
 
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_emits_failed_on_exception(mock_fetch_owned_ids):
     mock_fetch_owned_ids.side_effect = RuntimeError("network exploded")
     thread = library_db.LibraryFetchThread()
@@ -701,7 +701,7 @@ def test_library_fetch_thread_emits_failed_on_exception(mock_fetch_owned_ids):
     assert succeeded == []
 
 
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_emits_auth_failure_instead_of_failed_when_not_logged_in(mock_fetch_owned_ids):
     # Not logged in is a distinct case from a generic network/data failure.
     # The UI needs to tell them apart to show the right message and reset
@@ -719,9 +719,9 @@ def test_library_fetch_thread_emits_auth_failure_instead_of_failed_when_not_logg
     assert failed == []
 
 
-@patch("gogstash.library_db.update_cache")
-@patch("gogstash.library_db.fetch_downloadables")
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.update_cache")
+@patch("shrewnut.library_db.fetch_downloadables")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_library_fetch_thread_interrupted_emits_nothing_and_leaves_the_cache_alone(
     mock_fetch_owned_ids, mock_fetch_downloadables, mock_update_cache
 ):
@@ -752,7 +752,7 @@ def test_get_downloadables_hands_back_each_files_installer_version():
     assert versions["bonus_content"] is None  # GOG doesn't version manuals
 
 
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_a_file_permission_error_is_a_failure_not_a_logout(mock_fetch_owned_ids):
     # Python's own PermissionError is about files, not GOG. Telling someone
     # with a read-only config folder to log in again would send them in
@@ -769,33 +769,33 @@ def test_a_file_permission_error_is_a_failure_not_a_logout(mock_fetch_owned_ids)
     assert failed == ["[Errno 13] Permission denied: '/config/goglibrary.db'"]
 
 
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_a_refresh_that_blows_up_leaves_its_traceback_in_the_log(mock_fetch_owned_ids, caplog):
-    # The user's error box gets one line. Whoever reads gogstash.log gets the
+    # The user's error box gets one line. Whoever reads shrewnut.log gets the
     # whole story, including the chapter where it went wrong.
     mock_fetch_owned_ids.side_effect = KeyError("owned")
     thread = library_db.LibraryFetchThread(force=True)
 
-    with caplog.at_level("INFO", logger="gogstash.library_db"):
+    with caplog.at_level("INFO", logger="shrewnut.library_db"):
         thread.run()
 
     [record] = [r for r in caplog.records if r.levelname == "ERROR"]
     assert record.exc_info[0] is KeyError
 
 
-@patch("gogstash.library_db.fetch_owned_ids")
+@patch("shrewnut.library_db.fetch_owned_ids")
 def test_a_refresh_while_logged_out_is_a_warning_not_an_error(mock_fetch_owned_ids, caplog):
     mock_fetch_owned_ids.side_effect = gog_api.AuthenticationFailure("Authentication failed. Login again.")
     thread = library_db.LibraryFetchThread(force=True)
 
-    with caplog.at_level("INFO", logger="gogstash.library_db"):
+    with caplog.at_level("INFO", logger="shrewnut.library_db"):
         thread.run()
 
     assert [r.levelname for r in caplog.records] == ["WARNING"]  # expected, so no traceback
 
 
 def test_update_cache_logs_what_it_wrote_and_what_it_skipped(caplog):
-    with caplog.at_level("INFO", logger="gogstash.library_db"):
+    with caplog.at_level("INFO", logger="shrewnut.library_db"):
         library_db.update_cache([FAKE_PRODUCT, FAKE_PACK])
 
     [message] = [r.getMessage() for r in caplog.records]
@@ -806,7 +806,7 @@ def test_update_cache_logs_what_it_wrote_and_what_it_skipped(caplog):
 def test_a_rebuilt_cache_logs_both_versions(caplog):
     _write_cache_with_version(0)
 
-    with caplog.at_level("INFO", logger="gogstash.library_db"):
+    with caplog.at_level("INFO", logger="shrewnut.library_db"):
         library_db.verify_schema_version()
 
     [warning] = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]

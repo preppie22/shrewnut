@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from gogstash import gog_auth
-from gogstash import login_window
-from gogstash.login_window import BASE_PAGE, ExitCode, LoginWindow
+from shrewnut import gog_auth
+from shrewnut import login_window
+from shrewnut.login_window import BASE_PAGE, ExitCode, LoginWindow
 
 
 SUCCESS_URL = "https://embed.gog.com/on_login_success?origin=client&code=thecode"
@@ -148,7 +148,7 @@ def not_frozen(monkeypatch):
     monkeypatch.delattr(sys, "frozen", raising=False)
 
 
-@patch("gogstash.gog_auth.fetch_token", return_value=TOKEN)
+@patch("shrewnut.gog_auth.fetch_token", return_value=TOKEN)
 def test_successful_login_saves_token_and_exits_ok(mock_fetch, install_webview, not_frozen):
     webview = install_webview(landing_url=SUCCESS_URL)
 
@@ -163,7 +163,7 @@ def test_successful_login_saves_token_and_exits_ok(mock_fetch, install_webview, 
     assert webview.start_kwargs["private_mode"] is True
 
 
-@patch("gogstash.gog_auth.fetch_token")
+@patch("shrewnut.gog_auth.fetch_token")
 def test_closing_window_without_logging_in_is_a_cancel(mock_fetch, install_webview, not_frozen):
     install_webview(scenario="close_after_page_loads")
 
@@ -223,7 +223,7 @@ def test_token_exchange_failure_is_its_own_exit_code(install_webview, not_frozen
     caplog.set_level(logging.INFO)
     install_webview(landing_url=SUCCESS_URL)
 
-    with patch("gogstash.gog_auth.fetch_token", side_effect=failure):
+    with patch("shrewnut.gog_auth.fetch_token", side_effect=failure):
         result = LoginWindow().start_helper()
 
     # Not EXIT_NO_WEBVIEW: the webview did its job, and the paste dialog
@@ -267,8 +267,8 @@ def test_from_source_leaves_gi_typelib_path_alone(monkeypatch, not_frozen):
     assert login_window.os.environ["GI_TYPELIB_PATH"] == "/whatever/the/user/had"
 
 
-@patch("gogstash.login_window.setup_logging")
-@patch("gogstash.login_window.LoginWindow")
+@patch("shrewnut.login_window.setup_logging")
+@patch("shrewnut.login_window.LoginWindow")
 def test_main_logs_to_its_own_file_then_exits_with_the_helpers_code(mock_login_cls, mock_setup):
     order = []
     mock_setup.side_effect = lambda log_file: order.append("logging")
@@ -277,7 +277,7 @@ def test_main_logs_to_its_own_file_then_exits_with_the_helpers_code(mock_login_c
     with pytest.raises(SystemExit) as exited:
         login_window.main()
 
-    # Its own file: sharing gogstash.log meant the main window rotating it
+    # Its own file: sharing shrewnut.log meant the main window rotating it
     # while the helper still held it open, which Windows takes personally.
     mock_setup.assert_called_once_with(login_window.log_file_path(login_window.LogFile.AUTH_LOG))
     assert order == ["logging", "helper"]  # set up before the first line worth keeping

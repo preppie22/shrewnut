@@ -5,12 +5,12 @@ free space check, manifest updates and the download log. Each game is
 downloaded by its own ``DownloadWorkerThread``.
 """
 
-from gogstash import library_db
-from gogstash import settings
-from gogstash import gog_api
-from gogstash import manifest
-from gogstash.constants import HTTP_TIMEOUT
-from gogstash.log_setup import DOWNLOAD_LOGGER
+from shrewnut import library_db
+from shrewnut import settings
+from shrewnut import gog_api
+from shrewnut import manifest
+from shrewnut.constants import HTTP_TIMEOUT
+from shrewnut.log_setup import DOWNLOAD_LOGGER
 
 import humanize
 from pathlib import Path

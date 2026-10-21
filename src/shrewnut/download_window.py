@@ -43,9 +43,9 @@ from PySide6.QtGui import (
     QShortcut,
     QKeySequence
 )
-from gogstash.icon_utils import get_icon, status_indicator
-from gogstash.download_queue import DownloadScheduler
-from gogstash.settings import read_setting
+from shrewnut.icon_utils import get_icon, status_indicator
+from shrewnut.download_queue import DownloadScheduler
+from shrewnut.settings import read_setting
 
 import logging
 log = logging.getLogger(__name__)

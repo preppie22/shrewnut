@@ -1,4 +1,4 @@
-from gogstash import paths
+from shrewnut import paths
 
 
 def test_log_files_live_in_their_own_folder(tmp_path):

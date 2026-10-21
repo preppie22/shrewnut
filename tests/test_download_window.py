@@ -6,10 +6,10 @@ from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTreeWidget
 
-from gogstash import library_db
-from gogstash.download_queue import DownloadScheduler
-from gogstash.download_window import Column, DownloadState, DownloadWindow, StatusDelegate, UserRole
-from gogstash.settings import update_setting
+from shrewnut import library_db
+from shrewnut.download_queue import DownloadScheduler
+from shrewnut.download_window import Column, DownloadState, DownloadWindow, StatusDelegate, UserRole
+from shrewnut.settings import update_setting
 from tests.fakes import gog_product
 
 FAKE_PRODUCT = gog_product(42, "Some Game", "some-game")
@@ -38,7 +38,7 @@ class SizedDownloadList:
 
 
 def sized_downloads():
-    return patch("gogstash.download_queue.generate_download_list", new_callable=SizedDownloadList)
+    return patch("shrewnut.download_queue.generate_download_list", new_callable=SizedDownloadList)
 
 
 @pytest.fixture(autouse=True)
@@ -116,7 +116,7 @@ def test_set_progress_updates_progress_role_data():
     assert window.game_queue_table.item(0, Column.TITLE).data(UserRole.PROGRESS_ROLE) == 42
 
 
-@patch("gogstash.download_window.get_icon")
+@patch("shrewnut.download_window.get_icon")
 def test_color_scheme_refresh_reloads_each_button_from_its_own_icon_file(mock_get_icon):
     mock_get_icon.return_value = _non_null_icon()
     window = DownloadWindow()
@@ -128,7 +128,7 @@ def test_color_scheme_refresh_reloads_each_button_from_its_own_icon_file(mock_ge
     assert called_files == {"trash.svg", "start_download.svg", "stop.svg", "dequeue.svg"}
 
 
-@patch("gogstash.download_window.get_icon")
+@patch("shrewnut.download_window.get_icon")
 def test_color_scheme_refresh_sets_the_reloaded_icon_on_each_button(mock_get_icon):
     mock_get_icon.return_value = _non_null_icon()
     window = DownloadWindow()
@@ -232,7 +232,7 @@ def test_busy_changed_stays_busy_through_a_pause_and_only_relaxes_once_idle(mock
     assert heard == [True, True, False]
 
 
-@patch("gogstash.download_window.DownloadScheduler")
+@patch("shrewnut.download_window.DownloadScheduler")
 @sized_downloads()
 def test_start_downloads_does_not_require_a_stored_token(mock_estimate, mock_scheduler_cls):
     # Regression: this used to puke ValueError("Invalid
@@ -487,7 +487,7 @@ def test_adding_a_game_after_a_finish_drags_the_overall_bar_back_to_reality(mock
 def _answer_dialog(button):
     # QMessageBox.exec blocks forever in a headless test run, so we answer
     # for the user. Politely.
-    return patch("gogstash.download_window.QMessageBox.exec", return_value=button)
+    return patch("shrewnut.download_window.QMessageBox.exec", return_value=button)
 
 
 YES = QMessageBox.StandardButton.Yes
@@ -857,11 +857,11 @@ class _IdleWorker(QObject):
 
 
 def _full_disk():
-    return patch("gogstash.download_queue.shutil.disk_usage", return_value=MagicMock(free=0))
+    return patch("shrewnut.download_queue.shutil.disk_usage", return_value=MagicMock(free=0))
 
 
 def _roomy_disk():
-    return patch("gogstash.download_queue.shutil.disk_usage", return_value=MagicMock(free=10**12))
+    return patch("shrewnut.download_queue.shutil.disk_usage", return_value=MagicMock(free=10**12))
 
 
 def _status_of(window, row):
@@ -874,7 +874,7 @@ def _deliver_queued_signals():
     QApplication.processEvents()
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_low_disk_space_waits_for_start_to_finish_before_asking(mock_estimate):
     # Regression: as a direct connection, the dialog popped up from inside
@@ -890,7 +890,7 @@ def test_low_disk_space_waits_for_start_to_finish_before_asking(mock_estimate):
         seen_states.append(window.current_state)
         return NO
 
-    with _full_disk(), patch("gogstash.download_window.QMessageBox.exec", side_effect=answer):
+    with _full_disk(), patch("shrewnut.download_window.QMessageBox.exec", side_effect=answer):
         window.start_downloads()
         assert seen_states == []  # not from inside start, thanks
         _deliver_queued_signals()
@@ -898,7 +898,7 @@ def test_low_disk_space_waits_for_start_to_finish_before_asking(mock_estimate):
     assert seen_states == [DownloadState.RUNNING]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_pausing_on_a_full_disk_before_anything_started_still_lands_on_paused(mock_estimate):
     # Regression: with no active worker around to report back, nobody ever
@@ -920,7 +920,7 @@ def test_pausing_on_a_full_disk_before_anything_started_still_lands_on_paused(mo
     assert window.game_queue_table.rowCount() == 1  # pausing isn't clearing
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_pausing_on_a_full_disk_mid_run_pauses_the_active_game_and_keeps_the_rest_queued(mock_estimate):
     # The download that was happily running gets to keep its .part file
@@ -942,7 +942,7 @@ def test_pausing_on_a_full_disk_mid_run_pauses_the_active_game_and_keeps_the_res
     assert [j["priority"] for j in window.scheduler.paused_queue] == [0]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_resuming_onto_a_disk_that_is_still_full_asks_again(mock_estimate):
     # Regression: the one-dialog-per-run guard outlived the pause, so Resume
@@ -964,7 +964,7 @@ def test_resuming_onto_a_disk_that_is_still_full_asks_again(mock_estimate):
     assert window.current_state == DownloadState.PAUSED
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_saying_yes_to_a_full_disk_downloads_anyway_with_the_buttons_still_working(mock_estimate):
     mock_estimate.return_value = 1000
@@ -982,7 +982,7 @@ def test_saying_yes_to_a_full_disk_downloads_anyway_with_the_buttons_still_worki
     assert window.clear_queue_button.isEnabled() is True
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_full_disk_only_asks_once_no_matter_how_often_the_scheduler_complains(mock_estimate):
     # The scheduler re-checks after every finished game, and dialog.exec()
@@ -998,7 +998,7 @@ def test_a_full_disk_only_asks_once_no_matter_how_often_the_scheduler_complains(
         _deliver_queued_signals()
         return YES
 
-    with _full_disk(), patch("gogstash.download_window.QMessageBox.exec",
+    with _full_disk(), patch("shrewnut.download_window.QMessageBox.exec",
                              side_effect=answer_while_the_scheduler_keeps_yelling) as mock_exec:
         window.start_downloads()
         _deliver_queued_signals()
@@ -1006,7 +1006,7 @@ def test_a_full_disk_only_asks_once_no_matter_how_often_the_scheduler_complains(
     assert mock_exec.call_count == 1
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_the_next_run_gets_its_own_free_space_check(mock_estimate):
     # "Download anyway" is a one-run pass, not a lifetime membership.
@@ -1027,7 +1027,7 @@ def test_the_next_run_gets_its_own_free_space_check(mock_estimate):
     assert mock_exec.call_count == 2
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_stopping_while_paused_gives_the_start_button_back(mock_estimate):
     # Regression: with nothing active, the stop lands synchronously inside
@@ -1057,7 +1057,7 @@ def _fill_the_disk(window, pid=1):
 OK = QMessageBox.StandardButton.Ok
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_full_disk_mid_download_pauses_and_says_why(mock_estimate):
     # Regression: the game just went red with "[Errno 28]" and the next one
@@ -1092,10 +1092,10 @@ def _record_dialogs():
     def answer(box):
         titles.append(box.windowTitle())
         return OK
-    return titles, patch("gogstash.download_window.QMessageBox.exec", answer)
+    return titles, patch("shrewnut.download_window.QMessageBox.exec", answer)
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_lost_connection_mid_download_pauses_and_says_why(mock_estimate):
     # Regression (#29): a dead connection either hung forever or, with a
@@ -1119,7 +1119,7 @@ def test_a_lost_connection_mid_download_pauses_and_says_why(mock_estimate):
     assert _status_of(window, 0) == "yellow"
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_lost_connection_waits_for_the_other_downloads_before_saying_paused(mock_estimate):
     update_setting("download_concurrency", 2)
@@ -1147,7 +1147,7 @@ def test_a_lost_connection_waits_for_the_other_downloads_before_saying_paused(mo
     assert titles == ["Network Connection Lost"]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_full_disk_after_download_anyway_still_explains_and_rechecks_on_resume(mock_estimate):
     # "Download anyway" is how you usually end up here, so it's exactly the
@@ -1177,7 +1177,7 @@ def test_a_full_disk_after_download_anyway_still_explains_and_rechecks_on_resume
     assert window.current_state == DownloadState.PAUSED
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_full_disk_waits_for_the_other_downloads_before_saying_paused(mock_estimate):
     # Two downloads, one hits the wall. The other takes a moment to put its
@@ -1208,7 +1208,7 @@ def test_a_full_disk_waits_for_the_other_downloads_before_saying_paused(mock_est
 
 # --- rows are found by product ID, not by where they happen to sit ---
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 def test_queuing_an_already_downloaded_game_mid_run_goes_green_on_the_spot():
     # Regression: with a slot free, enqueue() scheduled on its own and the
     # game was declared finished before add_to_queue had written its size
@@ -1222,7 +1222,7 @@ def test_queuing_an_already_downloaded_game_mid_run_goes_green_on_the_spot():
     announced = []
     window.game_succeeded.connect(announced.append)
 
-    with _roomy_disk(), patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with _roomy_disk(), patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         window.add_to_queue(_row(title="Already Here", product_id=2))
 
     assert _status_of(window, 1) == "green"
@@ -1231,7 +1231,7 @@ def test_queuing_an_already_downloaded_game_mid_run_goes_green_on_the_spot():
     assert announced == [2]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_game_queued_mid_run_still_grabs_a_free_slot(mock_estimate):
     # enqueue() doesn't schedule anymore, so the window has to kick it.
@@ -1250,7 +1250,7 @@ def test_a_game_queued_mid_run_still_grabs_a_free_slot(mock_estimate):
     assert _status_of(window, 1) == "blue"
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_game_queued_while_paused_waits_for_resume(mock_estimate):
     mock_estimate.return_value = 1000
@@ -1360,7 +1360,7 @@ def test_a_removed_game_can_be_queued_again(mock_estimate):
     assert sorted(j["product_id"] for j in window.scheduler.idle_queue) == [100, 101]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_game_added_after_a_removal_gets_its_own_row_and_the_back_of_the_line(mock_estimate):
     # Regression x2. The new row's items went to row "priority counter",
@@ -1385,7 +1385,7 @@ def test_a_game_added_after_a_removal_gets_its_own_row_and_the_back_of_the_line(
     assert [j["product_id"] for j in window.scheduler.active_queue] == [104]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_the_remove_button_sits_out_the_downloading_and_comes_back_for_the_pause(mock_estimate):
     mock_estimate.return_value = 1000
@@ -1403,7 +1403,7 @@ def test_the_remove_button_sits_out_the_downloading_and_comes_back_for_the_pause
     assert window.remove_button.toolTip() == "Remove selected items from queue (Del)"
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_removing_mid_download_does_nothing_even_if_someone_gets_past_the_button(mock_estimate):
     # The button is greyed out, but a keyboard shortcut or context menu
@@ -1424,7 +1424,7 @@ def test_removing_mid_download_does_nothing_even_if_someone_gets_past_the_button
     assert [j["product_id"] for j in window.scheduler.idle_queue] == [101, 102]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_paused_game_can_be_removed_and_the_rest_resume_without_it(mock_estimate):
     update_setting("download_concurrency", 1)
@@ -1445,7 +1445,7 @@ def test_a_paused_game_can_be_removed_and_the_rest_resume_without_it(mock_estima
     assert [j["product_id"] for j in window.scheduler.active_queue] == [101]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_finished_and_failed_games_can_be_removed_while_paused(mock_estimate):
     # Mid-run, these two already said their goodbyes to the scheduler, so
@@ -1468,7 +1468,7 @@ def test_finished_and_failed_games_can_be_removed_while_paused(mock_estimate):
     assert window.current_state == DownloadState.PAUSED
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_removing_the_last_game_while_paused_lands_back_on_idle_instead_of_a_dead_resume_button(mock_estimate):
     # Regression: an empty table while PAUSED left Resume clicking into
@@ -1554,7 +1554,7 @@ def test_del_somewhere_else_in_the_window_leaves_the_queue_alone(mock_estimate, 
     assert _titles(window) == ["G0", "G1"]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_del_mid_download_does_nothing_even_though_the_button_cant_stop_it(mock_estimate, docked):
     # Disabling the button does nothing for the keyboard. The handler's own
@@ -1575,13 +1575,13 @@ def test_del_mid_download_does_nothing_even_though_the_button_cant_stop_it(mock_
 
 # --- a run that's over before it starts ---
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 def test_starting_a_queue_with_nothing_left_to_download_lands_on_complete_not_downloading():
     # Regression: schedule() finished every game on the spot and _on_finished
     # reset the window, then start_downloads() carried on and slapped
     # "Downloading..." back on top. Downloading nothing, forever.
     window = DownloadWindow()
-    with patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         window.add_to_queue(_row(product_id=1))
 
     with _roomy_disk():
@@ -1593,7 +1593,7 @@ def test_starting_a_queue_with_nothing_left_to_download_lands_on_complete_not_do
     assert window.remove_button.isEnabled() is True
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_resuming_after_removing_the_only_paused_game_finishes_instead_of_hanging(mock_estimate):
     # Same bug, found the hard way: one game done, the other paused and
@@ -1630,7 +1630,7 @@ class _Ticker:
     def tick(self, mb=0):
         self.window.scheduler._handle_bytes_downloaded(mb * 1_000_000)
         self.now += 1
-        with patch("gogstash.download_window.time.monotonic", return_value=self.now):
+        with patch("shrewnut.download_window.time.monotonic", return_value=self.now):
             self.window._measure_speed()
 
 
@@ -1746,10 +1746,10 @@ def test_pausing_shows_zero_at_once_and_resuming_starts_a_fresh_average():
     assert window.download_speed.text() == "10.0 MB/s (ETA: a minute)"
 
 
-# --- what the user decided, in gogstash.log ---
+# --- what the user decided, in shrewnut.log ---
 
 def _window_log(caplog):
-    return [r.getMessage().lower() for r in caplog.records if r.name == "gogstash.download_window"]
+    return [r.getMessage().lower() for r in caplog.records if r.name == "shrewnut.download_window"]
 
 
 @patch.object(DownloadScheduler, "resume_all")
@@ -1763,7 +1763,7 @@ def test_start_pause_and_resume_each_leave_a_line_in_order(mock_estimate, mock_s
     window = DownloadWindow()
     window.add_to_queue(_row())
 
-    with caplog.at_level("INFO", logger="gogstash.download_window"):
+    with caplog.at_level("INFO", logger="shrewnut.download_window"):
         window.start_button.click()
         window.start_button.click()
         window._on_paused()
@@ -1776,7 +1776,7 @@ def test_start_pause_and_resume_each_leave_a_line_in_order(mock_estimate, mock_s
     assert "resum" in lines[2]
 
 
-@patch("gogstash.download_queue.DownloadWorkerThread", _IdleWorker)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 @pytest.mark.parametrize("answer, word", [(YES, "anyway"), (NO, "paused")])
 def test_the_low_disk_space_answer_is_logged(mock_estimate, caplog, answer, word):
@@ -1784,7 +1784,7 @@ def test_the_low_disk_space_answer_is_logged(mock_estimate, caplog, answer, word
     window = DownloadWindow()
     window.add_to_queue(_row(product_id=1))
 
-    with caplog.at_level("INFO", logger="gogstash.download_window"), _full_disk(), _answer_dialog(answer):
+    with caplog.at_level("INFO", logger="shrewnut.download_window"), _full_disk(), _answer_dialog(answer):
         window.start_downloads()
         _deliver_queued_signals()
 

@@ -5,8 +5,8 @@ import requests
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
-from gogstash import gog_auth, paths
-from gogstash.constants import HTTP_TIMEOUT_SHORT
+from shrewnut import gog_auth, paths
+from shrewnut.constants import HTTP_TIMEOUT_SHORT
 
 
 def make_response(json_data, status_code=200):
@@ -28,7 +28,7 @@ def test_build_auth_uri_contains_expected_params():
     assert query["layout"] == ["client2"]
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_fetch_token_authorize_sends_code_and_redirect_uri(mock_get):
     mock_get.return_value = make_response(
         {"access_token": "abc", "refresh_token": "def", "expires_in": 3600}
@@ -52,7 +52,7 @@ def test_fetch_token_authorize_sends_code_and_redirect_uri(mock_get):
     assert before + 3600 <= token["expiry"] <= after + 3600
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_fetch_token_refresh_sends_refresh_token_not_code(mock_get):
     mock_get.return_value = make_response(
         {"access_token": "new", "refresh_token": "def", "expires_in": 3600}
@@ -89,7 +89,7 @@ def test_get_valid_token_returns_none_when_not_logged_in():
     assert gog_auth.get_valid_token() is None
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_get_valid_token_returns_saved_token_without_refresh(mock_get):
     saved = {"access_token": "still-good", "expiry": time.time() + 3600}
     gog_auth.save_token(saved)
@@ -100,7 +100,7 @@ def test_get_valid_token_returns_saved_token_without_refresh(mock_get):
     mock_get.assert_not_called()
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_get_valid_token_refreshes_and_persists_when_expired(mock_get):
     gog_auth.save_token(
         {"access_token": "stale", "refresh_token": "myrefresh", "expiry": time.time() - 10}
@@ -117,7 +117,7 @@ def test_get_valid_token_refreshes_and_persists_when_expired(mock_get):
     assert kwargs["params"]["refresh_token"] == "myrefresh"
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_a_refreshed_token_leaves_a_line_but_not_itself_in_the_log(mock_get, caplog):
     gog_auth.save_token(
         {"access_token": "old-secret-abc", "refresh_token": "refresh-secret-xyz", "expiry": time.time() - 10}
@@ -126,7 +126,7 @@ def test_a_refreshed_token_leaves_a_line_but_not_itself_in_the_log(mock_get, cap
         {"access_token": "new-secret-def", "refresh_token": "refresh-secret-xyz", "expires_in": 3600}
     )
 
-    with caplog.at_level("INFO", logger="gogstash.gog_auth"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_auth"):
         gog_auth.get_valid_token()
 
     [record] = caplog.records
@@ -135,7 +135,7 @@ def test_a_refreshed_token_leaves_a_line_but_not_itself_in_the_log(mock_get, cap
         assert secret not in record.getMessage()  # log files get pasted into bug reports
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_a_refused_refresh_logs_you_out_instead_of_blowing_up(mock_get, caplog):
     # Regression (#31): GOG's "no" came back as KeyError: 'expires_in', and
     # at startup that took the whole app down before it had a window. A
@@ -146,14 +146,14 @@ def test_a_refused_refresh_logs_you_out_instead_of_blowing_up(mock_get, caplog):
     )
     mock_get.return_value = make_response({"error": "invalid_grant"}, status_code=400)
 
-    with caplog.at_level("INFO", logger="gogstash.gog_auth"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_auth"):
         assert gog_auth.get_valid_token() is None
 
     assert gog_auth._load_token() is None
     assert [r.levelname for r in caplog.records] == ["WARNING", "WARNING"]  # GOG's reason, then what came of it
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_an_offline_refresh_keeps_the_saved_login(mock_get):
     # Can't reach GOG is not the same as GOG said no. The refresh token is
     # fine, it just can't be cashed in right now, so it stays for next time.
@@ -167,7 +167,7 @@ def test_an_offline_refresh_keeps_the_saved_login(mock_get):
     assert gog_auth._load_token() == saved
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_gog_refusing_a_token_logs_its_reason_and_status(mock_get, caplog):
     # GOG says why in its answer, and the status code says how loudly. Both
     # go in the log, the refresh token stays out.
@@ -176,7 +176,7 @@ def test_gog_refusing_a_token_logs_its_reason_and_status(mock_get, caplog):
         status_code=400,
     )
 
-    with caplog.at_level("INFO", logger="gogstash.gog_auth"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_auth"):
         with pytest.raises(gog_auth.AuthenticationFailure):
             gog_auth.fetch_token(type=gog_auth.GrantType.REFRESH, refresh_token="myrefresh")
 
@@ -236,7 +236,7 @@ def _full_story(error):
 
 
 @pytest.mark.parametrize("error_class", [requests.ConnectionError, requests.Timeout, requests.exceptions.SSLError])
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_a_failed_token_request_keeps_its_class_but_drops_the_secrets(mock_get, error_class):
     # requests puts the whole query string in its message, and the query is
     # where the refresh token rides. The class stays, so the download worker
@@ -253,12 +253,12 @@ def test_a_failed_token_request_keeps_its_class_but_drops_the_secrets(mock_get, 
     assert "During handling" not in story  # the leaky original isn't hitching a ride
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_an_offline_refresh_during_a_library_refresh_keeps_the_token_out_of_the_log(mock_get, caplog):
     # The way it actually happens: expired token, no network, someone clicks
     # Refresh. library_db logs the traceback, and the traceback used to be
     # carrying a long-lived refresh token to whoever reads the bug report.
-    from gogstash import library_db
+    from shrewnut import library_db
     gog_auth.save_token({"access_token": "a", "refresh_token": "REFRESH-SECRET", "expiry": time.time() - 10})
     mock_get.side_effect = requests.ConnectionError(LEAKY_URL)
     library_db._create_db(force=True)
@@ -275,7 +275,7 @@ def test_an_offline_refresh_during_a_library_refresh_keeps_the_token_out_of_the_
     assert "REFRESH-SECRET" not in failed[0]
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_gog_refusing_a_token_is_an_auth_failure_not_a_key_error(mock_get):
     # A KeyError would be caught by anything catching KeyError, bugs included.
     # Refused is its own thing, and callers need to catch exactly that.
@@ -291,7 +291,7 @@ def test_gog_refusing_a_token_is_an_auth_failure_not_a_key_error(mock_get):
 def test_gog_api_still_answers_to_the_old_name():
     # library_db and the download worker catch gog_api.AuthenticationFailure.
     # One class, two addresses.
-    from gogstash import gog_api
+    from shrewnut import gog_api
     assert gog_api.AuthenticationFailure is gog_auth.AuthenticationFailure
 
 
@@ -318,7 +318,7 @@ def test_threads_that_find_the_same_expired_token_refresh_it_once():
         start.wait()
         results.append(gog_auth.get_valid_token())
 
-    with patch("gogstash.gog_auth.fetch_token", side_effect=slow_refresh):
+    with patch("shrewnut.gog_auth.fetch_token", side_effect=slow_refresh):
         threads = [threading.Thread(target=worker) for _ in range(5)]
         for t in threads:
             t.start()
@@ -346,7 +346,7 @@ def test_a_save_that_fails_halfway_keeps_the_old_token_intact():
         fp.write('{"access_tok')
         raise OSError(28, "No space left on device")
 
-    with patch("gogstash.gog_auth.json.dump", half_a_write):
+    with patch("shrewnut.gog_auth.json.dump", half_a_write):
         with pytest.raises(OSError):
             gog_auth.save_token({"access_token": "new", "expiry": 2})
 
@@ -370,7 +370,7 @@ def test_an_unreadable_token_file_logs_you_out_and_gets_out_of_the_way(contents,
     else:
         token_file.write_text(contents)
 
-    with caplog.at_level("INFO", logger="gogstash.gog_auth"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_auth"):
         assert gog_auth.get_valid_token() is None
 
     assert not token_file.exists()  # binned, not re-read and re-warned about on every check
@@ -379,7 +379,7 @@ def test_an_unreadable_token_file_logs_you_out_and_gets_out_of_the_way(contents,
     assert "access_tok" not in record.getMessage() and "list" not in record.getMessage()  # contents stay out of the log
 
 
-@patch("gogstash.gog_auth.requests.get")
+@patch("shrewnut.gog_auth.requests.get")
 def test_gog_answering_with_an_html_page_keeps_the_login(mock_get):
     # During an outage GOG can answer with an error page instead of JSON.
     # requests' JSONDecodeError is a ValueError too, so catching ValueError

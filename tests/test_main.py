@@ -14,12 +14,12 @@ from PySide6.QtGui import QColor, QIcon, QPixmap, QTextDocument
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
-from gogstash import gog_auth, library_db, manifest
-from gogstash.login_window import ExitCode
-from gogstash.download_window import DownloadState
-from gogstash import main as gogstash_main
-from gogstash.main import MainWindow
-from gogstash.settings import update_setting
+from shrewnut import gog_auth, library_db, manifest
+from shrewnut.login_window import ExitCode
+from shrewnut.download_window import DownloadState
+from shrewnut import main as shrewnut_main
+from shrewnut.main import MainWindow
+from shrewnut.settings import update_setting
 from tests.fakes import gog_product
 
 
@@ -144,7 +144,7 @@ def login_window(monkeypatch):
 
 @pytest.fixture
 def paste_dialog():
-    with patch("gogstash.main.ExternalLoginDialog") as mock_external_cls:
+    with patch("shrewnut.main.ExternalLoginDialog") as mock_external_cls:
         mock_external_cls.return_value.exec.return_value = QDialog.DialogCode.Rejected
         yield mock_external_cls
 
@@ -153,7 +153,7 @@ def paste_dialog():
 def warning_box():
     # QMessageBox.warning is modal, and a modal box in a headless test is a
     # very patient way to never finish.
-    with patch("gogstash.main.QMessageBox.warning") as mock_warning:
+    with patch("shrewnut.main.QMessageBox.warning") as mock_warning:
         yield mock_warning
 
 
@@ -162,7 +162,7 @@ def test_open_login_window_runs_helper_module_from_source(login_window, monkeypa
 
     login_window.open_login_window()
 
-    login_window.login_process.start.assert_called_once_with(sys.executable, ["-m", "gogstash.login_window"])
+    login_window.login_process.start.assert_called_once_with(sys.executable, ["-m", "shrewnut.login_window"])
     # From source there's no PyInstaller bootloader to reset, so the helper
     # just inherits our environment untouched.
     assert login_window.login_process.processEnvironment().isEmpty()
@@ -285,15 +285,15 @@ def test_other_process_errors_leave_login_disabled_while_helper_runs(login_windo
     (4, QProcess.ExitStatus.CrashExit, "WARNING"),
 ])
 def test_every_way_the_helper_ends_leaves_one_line_in_the_log(login_window, paste_dialog, warning_box, caplog, exit_code, exit_status, level):
-    # "Login didn't work" plus gogstash.log should be enough to tell which
+    # "Login didn't work" plus shrewnut.log should be enough to tell which
     # of the five ways it didn't work. Cancelling and succeeding are not
     # problems, so they don't get to shout.
     login_window.open_login_window()
 
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         login_window.login_process.finished.emit(exit_code, exit_status)
 
-    [record] = [r for r in caplog.records if r.name == "gogstash.main"]
+    [record] = [r for r in caplog.records if r.name == "shrewnut.main"]
     assert record.levelname == level
 
 
@@ -302,10 +302,10 @@ def test_an_exit_code_we_never_handed_out_is_logged_as_is(login_window, paste_di
     # the only clue anyone gets.
     login_window.open_login_window()
 
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         login_window.login_process.finished.emit(1, QProcess.ExitStatus.NormalExit)
 
-    [record] = [r for r in caplog.records if r.name == "gogstash.main"]
+    [record] = [r for r in caplog.records if r.name == "shrewnut.main"]
     assert record.levelname == "WARNING"
     assert record.getMessage().endswith("1")
 
@@ -316,10 +316,10 @@ def test_helper_process_errors_are_logged_even_when_nothing_else_happens(login_w
     # worth a line in the log for whoever reads it after things go sideways.
     login_window.open_login_window()
 
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         login_window.login_process.errorOccurred.emit(error)
 
-    [record] = [r for r in caplog.records if r.name == "gogstash.main"]
+    [record] = [r for r in caplog.records if r.name == "shrewnut.main"]
     assert record.levelname == "WARNING"
     assert record.getMessage().endswith(login_window.login_process.errorString())
 
@@ -348,7 +348,7 @@ def test_login_menu_items_start_their_own_logins(login_window, paste_dialog):
     paste_dialog.assert_called_once()  # still just the one from before
 
 
-@patch("gogstash.main.ExternalLoginDialog")
+@patch("shrewnut.main.ExternalLoginDialog")
 def test_open_external_login_refreshes_status_when_accepted(mock_external_cls):
     mock_external_cls.return_value.exec.return_value = QDialog.DialogCode.Accepted
     gog_auth.save_token({"access_token": "abc", "expiry": time.time() + 3600})
@@ -361,7 +361,7 @@ def test_open_external_login_refreshes_status_when_accepted(mock_external_cls):
     assert window.status_text.text() == "Logged in"
 
 
-@patch("gogstash.main.ExternalLoginDialog")
+@patch("shrewnut.main.ExternalLoginDialog")
 def test_open_external_login_leaves_status_untouched_when_rejected(mock_external_cls):
     mock_external_cls.return_value.exec.return_value = QDialog.DialogCode.Rejected
     window = MainWindow()
@@ -372,7 +372,7 @@ def test_open_external_login_leaves_status_untouched_when_rejected(mock_external
     assert window.status_text.text() == "stale"
 
 
-@patch("gogstash.main.SettingsDialog")
+@patch("shrewnut.main.SettingsDialog")
 def test_open_settings_constructs_and_executes_dialog(mock_settings_dialog_cls):
     window = MainWindow()
 
@@ -436,7 +436,7 @@ def test_about_qt_opens_over_the_main_window_not_the_about_box():
     mock_about_qt.assert_called_once_with(window)
 
 
-@patch("gogstash.library_db.LibraryFetchThread")
+@patch("shrewnut.library_db.LibraryFetchThread")
 def test_fetch_games_wires_up_thread_signals_and_starts_it(mock_thread_cls):
     # Login status isn't checked here anymore -- the thread resolves its own
     # token and reports back via auth_failure if there isn't one, so this
@@ -698,7 +698,7 @@ def test_onclick_queue_download_does_nothing_without_a_selection():
     window.download_window.add_to_queue.assert_not_called()
 
 
-@patch("gogstash.main.get_icon")
+@patch("shrewnut.main.get_icon")
 def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_own_icon_file(mock_get_icon):
     # The Queue Selection button got an icon too, so it gets a seat on the
     # theme-change bus alongside the toolbar crew. The About button hopped
@@ -730,7 +730,7 @@ def test_theme_change_mid_construction_doesnt_trip_over_half_built_widgets(monke
         hints = QApplication.instance().styleHints()
         hints.colorSchemeChanged.emit(Qt.ColorScheme.Dark)
 
-    with patch("gogstash.main.SettingsDialog.set_color_theme", side_effect=set_color_theme_like_windows):
+    with patch("shrewnut.main.SettingsDialog.set_color_theme", side_effect=set_color_theme_like_windows):
         MainWindow()
 
     assert slot_errors == []
@@ -787,7 +787,7 @@ def test_opening_settings_over_and_over_doesnt_hoard_dead_dialogs():
     # Regression: the main window parents each SettingsDialog, so dropping
     # the Python name did nothing and every open left one more behind.
     from PySide6.QtCore import QCoreApplication, QEvent
-    from gogstash.main import SettingsDialog
+    from shrewnut.main import SettingsDialog
     window = MainWindow()
 
     with patch.object(SettingsDialog, "exec", return_value=0):
@@ -802,7 +802,7 @@ def test_settings_locks_while_downloads_are_busy_and_unlocks_once_idle():
     # #26: moving the download folder under a paused game's .part file made
     # it start over from zero, so Settings sits out the whole run, pause
     # included, and says why instead of just going grey and silent.
-    from gogstash.download_window import DownloadState
+    from shrewnut.download_window import DownloadState
     window = MainWindow()
     assert window.settings_button.isEnabled() is True
     assert window.settings_button.toolTip() == "Settings (Ctrl+,)"
@@ -828,7 +828,7 @@ def _press_ctrl_comma(window):
     QTest.keyClick(window, Qt.Key.Key_Comma, Qt.KeyboardModifier.ControlModifier)
 
 
-@patch("gogstash.main.SettingsDialog")
+@patch("shrewnut.main.SettingsDialog")
 def test_ctrl_comma_opens_settings(mock_settings_dialog_cls):
     window = MainWindow()
 
@@ -837,10 +837,10 @@ def test_ctrl_comma_opens_settings(mock_settings_dialog_cls):
     mock_settings_dialog_cls.return_value.exec.assert_called_once()
 
 
-@patch("gogstash.main.SettingsDialog")
+@patch("shrewnut.main.SettingsDialog")
 def test_ctrl_comma_is_locked_out_along_with_the_button(mock_settings_dialog_cls):
     # A greyed-out button with a working back door is just a suggestion.
-    from gogstash.download_window import DownloadState
+    from shrewnut.download_window import DownloadState
     window = MainWindow()
     window.download_window.current_state = DownloadState.RUNNING
 
@@ -1152,11 +1152,11 @@ def _theme_action(window, label):
 def test_picking_a_theme_saves_it_before_applying_it():
     # set_color_theme reads the theme back from disk, so the order matters.
     # Apply first and you get last time's theme, a very confident one-click lag.
-    from gogstash import settings
+    from shrewnut import settings
     window = MainWindow()
     applied_with = []
 
-    with patch("gogstash.main.SettingsDialog.set_color_theme",
+    with patch("shrewnut.main.SettingsDialog.set_color_theme",
                side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
         _theme_action(window, "Light").trigger()
 
@@ -1189,13 +1189,13 @@ def test_theme_button_opens_its_menu_on_a_plain_click():
 def test_theme_stays_changeable_while_settings_is_locked():
     # The whole reason it moved out of Settings. Changing colors never
     # stranded a .part file.
-    from gogstash import settings
-    from gogstash.download_window import DownloadState
+    from shrewnut import settings
+    from shrewnut.download_window import DownloadState
     update_setting("theme", "Dark")
     window = MainWindow()
     window.download_window.current_state = DownloadState.RUNNING
 
-    with patch("gogstash.main.SettingsDialog.set_color_theme"):
+    with patch("shrewnut.main.SettingsDialog.set_color_theme"):
         _theme_action(window, "Light").trigger()
 
     assert window.settings_button.isEnabled() is False
@@ -1203,11 +1203,11 @@ def test_theme_stays_changeable_while_settings_is_locked():
     assert settings.read_setting("theme") == "Light"
 
 
-@patch("gogstash.main.QDesktopServices.openUrl", return_value=True)
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
 def test_open_downloads_folder_hands_the_download_path_to_the_file_manager(mock_open_url, tmp_path):
     # A space in the path, like the real NAS share. QUrl has to escape it,
     # not the file manager squinting at "Game%20Setups" and giving up.
-    download_dir = tmp_path / "Game Setups" / "gogstash"
+    download_dir = tmp_path / "Game Setups" / "shrewnut"
     download_dir.mkdir(parents=True)
     update_setting("download_path", str(download_dir))
     window = MainWindow()
@@ -1219,7 +1219,7 @@ def test_open_downloads_folder_hands_the_download_path_to_the_file_manager(mock_
     assert url.toLocalFile() == str(download_dir)
 
 
-@patch("gogstash.main.QDesktopServices.openUrl", return_value=True)
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
 def test_open_downloads_folder_makes_the_folder_on_a_fresh_install(mock_open_url, tmp_path):
     # Nothing downloaded yet means no folder yet. Opening a folder that
     # doesn't exist gets you an error dialog or a shrug, depending on the
@@ -1234,26 +1234,26 @@ def test_open_downloads_folder_makes_the_folder_on_a_fresh_install(mock_open_url
     mock_open_url.assert_called_once()
 
 
-@patch("gogstash.main.QMessageBox.warning")
-@patch("gogstash.main.QDesktopServices.openUrl")
+@patch("shrewnut.main.QMessageBox.warning")
+@patch("shrewnut.main.QDesktopServices.openUrl")
 def test_open_downloads_folder_says_so_when_the_folder_cant_be_made(mock_open_url, mock_warning, tmp_path):
     # A file squatting where a folder should go stands in for an unmounted
     # share or a read-only drive. The user hears about it, the file
     # manager is spared.
     squatter = tmp_path / "squatter"
     squatter.write_text("I live here now")
-    update_setting("download_path", str(squatter / "gogstash"))
+    update_setting("download_path", str(squatter / "shrewnut"))
     window = MainWindow()
 
     window.open_downloads_folder()
 
     mock_open_url.assert_not_called()
     mock_warning.assert_called_once()
-    assert str(squatter / "gogstash") in mock_warning.call_args.args[2]
+    assert str(squatter / "shrewnut") in mock_warning.call_args.args[2]
 
 
-@patch("gogstash.main.QMessageBox.critical")
-@patch("gogstash.main.QDesktopServices.openUrl", return_value=False)
+@patch("shrewnut.main.QMessageBox.critical")
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=False)
 def test_open_downloads_folder_speaks_up_when_nothing_can_open_folders(mock_open_url, mock_critical, tmp_path):
     # A desktop with no file manager. Rare, but a button that silently
     # does nothing is how bug reports titled "button broken" are born.
@@ -1292,7 +1292,7 @@ def _refreshing_thread():
 def test_close_while_idle_just_closes():
     window = MainWindow()
 
-    with patch("gogstash.main.QMessageBox.exec") as mock_exec:
+    with patch("shrewnut.main.QMessageBox.exec") as mock_exec:
         assert window.close() is True
 
     mock_exec.assert_not_called()
@@ -1300,7 +1300,7 @@ def test_close_while_idle_just_closes():
 
 
 def test_close_mid_download_answering_no_keeps_everything_running(busy_window):
-    with patch("gogstash.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.No):
+    with patch("shrewnut.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.No):
         assert busy_window.close() is False
 
     busy_window.download_window.stop_downloads.assert_not_called()
@@ -1310,7 +1310,7 @@ def test_close_mid_download_answering_no_keeps_everything_running(busy_window):
 def test_close_mid_download_answering_yes_stops_and_keeps_the_window_open(busy_window):
     # Accepting here would destroy the workers mid-chunk, which is how #30
     # started. The window waits for the queue to go idle instead.
-    with patch("gogstash.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
+    with patch("shrewnut.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
         assert busy_window.close() is False
 
     busy_window.download_window.stop_downloads.assert_called_once()
@@ -1320,7 +1320,7 @@ def test_close_mid_download_answering_yes_stops_and_keeps_the_window_open(busy_w
 def test_close_mid_download_yes_also_interrupts_a_running_refresh(busy_window):
     busy_window.fetch_thread = _refreshing_thread()
 
-    with patch("gogstash.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
+    with patch("shrewnut.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
         assert busy_window.close() is False
 
     busy_window.fetch_thread.requestInterruption.assert_called_once()
@@ -1331,7 +1331,7 @@ def test_close_mid_download_no_leaves_a_running_refresh_alone(busy_window):
     # even asked, so "No, keep going" still cost you your refresh.
     busy_window.fetch_thread = _refreshing_thread()
 
-    with patch("gogstash.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.No):
+    with patch("shrewnut.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.No):
         busy_window.close()
 
     busy_window.fetch_thread.requestInterruption.assert_not_called()
@@ -1343,7 +1343,7 @@ def test_close_mid_download_without_ever_refreshing_does_not_trip_over_no_fetch_
     # and closed anyway, workers and all.
     assert busy_window.fetch_thread is None
 
-    with patch("gogstash.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
+    with patch("shrewnut.main.QMessageBox.exec", return_value=QMessageBox.StandardButton.Yes):
         assert busy_window.close() is False
 
     busy_window.download_window.stop_downloads.assert_called_once()
@@ -1357,14 +1357,14 @@ def test_yes_after_the_queue_went_idle_during_the_question_quits_right_away(busy
         busy_window.download_window.current_state = DownloadState.IDLE
         return QMessageBox.StandardButton.Yes
 
-    with patch("gogstash.main.QMessageBox.exec", side_effect=finish_while_asking):
+    with patch("shrewnut.main.QMessageBox.exec", side_effect=finish_while_asking):
         assert busy_window.close() is True
 
 
 def test_close_again_while_still_stopping_does_not_ask_twice(busy_window):
     busy_window.quit_pending = True
 
-    with patch("gogstash.main.QMessageBox.exec") as mock_exec:
+    with patch("shrewnut.main.QMessageBox.exec") as mock_exec:
         assert busy_window.close() is False
 
     mock_exec.assert_not_called()
@@ -1377,7 +1377,7 @@ def test_close_during_a_refresh_alone_interrupts_it_without_asking():
     window = MainWindow()
     window.fetch_thread = _refreshing_thread()
 
-    with patch("gogstash.main.QMessageBox.exec") as mock_exec:
+    with patch("shrewnut.main.QMessageBox.exec") as mock_exec:
         assert window.close() is False
 
     mock_exec.assert_not_called()
@@ -1404,7 +1404,7 @@ def test_threads_busy_covers_both_the_queue_and_the_refresh():
     assert window._threads_busy() is False
 
 
-@patch("gogstash.main.QTimer")
+@patch("shrewnut.main.QTimer")
 def test_queue_going_idle_closes_the_window_only_if_a_quit_is_pending(mock_timer):
     window = MainWindow()
 
@@ -1421,7 +1421,7 @@ def test_queue_going_idle_closes_the_window_only_if_a_quit_is_pending(mock_timer
     window.quit_pending = False
 
 
-@patch("gogstash.main.QTimer")
+@patch("shrewnut.main.QTimer")
 def test_refresh_finishing_waits_for_the_thread_then_closes_if_a_quit_is_pending(mock_timer):
     window = MainWindow()
     window.fetch_thread = MagicMock()
@@ -1452,8 +1452,8 @@ def _caught(exc):
 def test_an_unhandled_exception_lands_in_the_log_with_its_traceback(caplog):
     # Regression: the Windows build has no console, so a crash used to leave
     # exactly as much evidence as a ninja. Now it signs the guest book.
-    with caplog.at_level("CRITICAL", logger="gogstash.main"):
-        gogstash_main._log_unhandled_exception(*_caught(KeyError("expires_in")))
+    with caplog.at_level("CRITICAL", logger="shrewnut.main"):
+        shrewnut_main._log_unhandled_exception(*_caught(KeyError("expires_in")))
 
     [record] = caplog.records
     assert record.levelname == "CRITICAL"
@@ -1467,7 +1467,7 @@ def test_ctrl_c_goes_to_python_as_usual_instead_of_the_log(caplog):
     exc_info = _caught(KeyboardInterrupt())
 
     with patch("sys.__excepthook__") as default_hook, caplog.at_level("DEBUG"):
-        gogstash_main._log_unhandled_exception(*exc_info)
+        shrewnut_main._log_unhandled_exception(*exc_info)
 
     default_hook.assert_called_once_with(*exc_info)
     assert caplog.records == []
@@ -1482,12 +1482,12 @@ class _MainRun:
         self.config = None
         self.hook_during_setup = None
         self.download_log = MagicMock()
-        monkeypatch.setattr(gogstash_main.logging, "basicConfig", self._basic_config)
-        monkeypatch.setattr(gogstash_main, "setup_download_log", self.download_log)
-        monkeypatch.setattr(gogstash_main, "QApplication", MagicMock())
-        monkeypatch.setattr(gogstash_main, "MainWindow", MagicMock())
+        monkeypatch.setattr(shrewnut_main.logging, "basicConfig", self._basic_config)
+        monkeypatch.setattr(shrewnut_main, "setup_download_log", self.download_log)
+        monkeypatch.setattr(shrewnut_main, "QApplication", MagicMock())
+        monkeypatch.setattr(shrewnut_main, "MainWindow", MagicMock())
         with patch("sys.exit"):
-            gogstash_main.main()
+            shrewnut_main.main()
 
     def _basic_config(self, **kwargs):
         self.config = kwargs
@@ -1511,8 +1511,8 @@ def main_run(monkeypatch):
 
 
 def test_main_installs_the_hook_once_logging_is_set_up(main_run):
-    assert sys.excepthook is gogstash_main._log_unhandled_exception
-    assert main_run.hook_during_setup is not gogstash_main._log_unhandled_exception  # logging first, hook after
+    assert sys.excepthook is shrewnut_main._log_unhandled_exception
+    assert main_run.hook_during_setup is not shrewnut_main._log_unhandled_exception  # logging first, hook after
 
 
 def test_main_logs_to_a_rotating_utf8_file_in_the_logs_folder(main_run, tmp_path):
@@ -1538,12 +1538,12 @@ def test_main_sets_up_the_download_history_too(main_run, tmp_path):
 
 def test_main_opens_the_log_with_who_is_running_what(monkeypatch, caplog):
     # The first thing anyone asks on a bug report, answered before they ask.
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         run = _MainRun(monkeypatch)
     run.close()
 
     [startup] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Starting Shrewnut")]
-    assert importlib.metadata.version("gogstash") in startup
+    assert importlib.metadata.version("shrewnut") in startup
     assert platform.platform() in startup
     assert f"Python {platform.python_version()}" in startup
     assert f"Qt {qVersion()}" in startup
@@ -1566,7 +1566,7 @@ def _gog_answers_with_a_fresh_token():
 @pytest.fixture
 def offline():
     """No network for token refreshes. _back_online() brings it back."""
-    with patch("gogstash.gog_auth.requests.get", side_effect=requests.ConnectionError("no network")) as mock_get:
+    with patch("shrewnut.gog_auth.requests.get", side_effect=requests.ConnectionError("no network")) as mock_get:
         yield mock_get
 
 
@@ -1581,13 +1581,13 @@ def test_the_app_opens_offline_with_an_expired_login(offline, caplog):
     # from. On Windows, without a word to anyone.
     gog_auth.save_token(EXPIRED_LOGIN)
 
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         window = MainWindow()
 
     assert window.status_text.text().startswith("Offline")
     assert "yellow" in window.logged_in_indicator.styleSheet()
     assert gog_auth._load_token() == EXPIRED_LOGIN  # offline isn't logged out, the login waits
-    assert any(r.levelname == "WARNING" for r in caplog.records if r.name == "gogstash.main")
+    assert any(r.levelname == "WARNING" for r in caplog.records if r.name == "shrewnut.main")
 
 
 def test_a_revoked_login_opens_logged_out_instead_of_crashing():
@@ -1597,7 +1597,7 @@ def test_a_revoked_login_opens_logged_out_instead_of_crashing():
     refused = MagicMock(status_code=400)
     refused.json.return_value = {"error": "invalid_grant", "error_description": "The refresh token is invalid."}
 
-    with patch("gogstash.gog_auth.requests.get", return_value=refused):
+    with patch("shrewnut.gog_auth.requests.get", return_value=refused):
         window = MainWindow()
 
     assert window.status_text.text() == "Not logged in"
@@ -1667,7 +1667,7 @@ def test_a_manual_refresh_once_back_online_clears_the_offline_state_too(offline)
 def test_a_mangled_token_file_opens_logged_out_instead_of_crashing():
     # Same family as #31: something under the window's first login check
     # raised, and the window never got built.
-    from gogstash import paths
+    from shrewnut import paths
     token_file = paths.config_file_path(paths.ConfigFile.TOKEN)
     token_file.parent.mkdir(parents=True, exist_ok=True)
     token_file.write_text('{"access_tok')
@@ -1682,8 +1682,8 @@ def test_a_mangled_token_file_opens_logged_out_instead_of_crashing():
 
 def test_main_logs_when_it_moved_the_old_config_folder(monkeypatch, caplog):
     # "My settings vanished" bug reports start here.
-    monkeypatch.setattr(gogstash_main, "migrate_config", lambda: True)
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    monkeypatch.setattr(shrewnut_main, "migrate_config", lambda: True)
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         run = _MainRun(monkeypatch)
     run.close()
 
@@ -1691,8 +1691,8 @@ def test_main_logs_when_it_moved_the_old_config_folder(monkeypatch, caplog):
 
 
 def test_main_says_nothing_about_a_move_that_never_happened(monkeypatch, caplog):
-    monkeypatch.setattr(gogstash_main, "migrate_config", lambda: False)
-    with caplog.at_level("INFO", logger="gogstash.main"):
+    monkeypatch.setattr(shrewnut_main, "migrate_config", lambda: False)
+    with caplog.at_level("INFO", logger="shrewnut.main"):
         run = _MainRun(monkeypatch)
     run.close()
 
@@ -1706,17 +1706,17 @@ def test_main_stops_at_a_failed_move_before_anything_touches_the_new_folder(monk
     # so Windows' complaint has to be in it.
     def refuse():
         raise PermissionError(13, "[WinError 5] Access is denied")
-    monkeypatch.setattr(gogstash_main, "migrate_config", refuse)
-    monkeypatch.setattr(gogstash_main, "QApplication", MagicMock())
+    monkeypatch.setattr(shrewnut_main, "migrate_config", refuse)
+    monkeypatch.setattr(shrewnut_main, "QApplication", MagicMock())
     message_box = MagicMock()
-    monkeypatch.setattr(gogstash_main, "QMessageBox", message_box)
+    monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
     setup_logging = MagicMock()
-    monkeypatch.setattr(gogstash_main, "setup_logging", setup_logging)
+    monkeypatch.setattr(shrewnut_main, "setup_logging", setup_logging)
     window = MagicMock()
-    monkeypatch.setattr(gogstash_main, "MainWindow", window)
+    monkeypatch.setattr(shrewnut_main, "MainWindow", window)
 
     with pytest.raises(SystemExit) as exit_info:
-        gogstash_main.main()
+        shrewnut_main.main()
 
     assert exit_info.value.code == 1
     assert "[WinError 5] Access is denied" in message_box.call_args.kwargs["detailedText"]

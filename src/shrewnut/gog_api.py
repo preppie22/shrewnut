@@ -3,9 +3,9 @@
 import requests
 from typing import Callable
 
-from gogstash import gog_auth
-from gogstash.gog_auth import AuthenticationFailure
-from gogstash.constants import HTTP_TIMEOUT
+from shrewnut import gog_auth
+from shrewnut.gog_auth import AuthenticationFailure
+from shrewnut.constants import HTTP_TIMEOUT
 
 import logging
 log = logging.getLogger(__name__)

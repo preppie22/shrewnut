@@ -5,8 +5,8 @@ import re
 import sys
 
 
-datas = [(os.path.join(SPECPATH, '..', '..', 'src', 'gogstash', 'icons'), 'gogstash/icons'), (os.path.join(SPECPATH, '..', 'licenses'), 'gogstash/licenses')]
-datas += copy_metadata('gogstash')
+datas = [(os.path.join(SPECPATH, '..', '..', 'src', 'shrewnut', 'icons'), 'shrewnut/icons'), (os.path.join(SPECPATH, '..', 'licenses'), 'shrewnut/licenses')]
+datas += copy_metadata('shrewnut')
 
 # Exclude "libstdc++.so.6", "libgcc_s.so.1", "libgbm.so.1" to fix #1
 excluded_files_linux = {
@@ -124,7 +124,7 @@ unused_libs_windows = {
 excluded_modules = ["PySide6.QtNetwork", "readline"]
 
 a = Analysis(
-    ['launch_gogstash.py'],
+    ['launch_shrewnut.py'],
     pathex=[],
     binaries=[],
     datas=datas,

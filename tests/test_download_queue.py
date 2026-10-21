@@ -14,8 +14,8 @@ import pytest
 import requests
 from PySide6.QtCore import QObject, Signal
 
-from gogstash import download_queue, gog_api, library_db, log_setup, manifest, paths, settings
-from gogstash.constants import HTTP_TIMEOUT
+from shrewnut import download_queue, gog_api, library_db, log_setup, manifest, paths, settings
+from shrewnut.constants import HTTP_TIMEOUT
 from tests.fakes import gog_product
 
 FAKE_PRODUCT = gog_product(111, "Fake Game", "fake-game", downloads={
@@ -397,8 +397,8 @@ def make_worker(resume_info=None, file_queue=None):
     return download_queue.DownloadWorkerThread(111, file_queue, resume_info)
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_succeeds_and_writes_file(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     # file1's declared size in FAKE_PRODUCT is 1000 bytes, the streamed
@@ -444,9 +444,9 @@ def ten_chunk_download(mock_resolve, mock_get, tmp_path):
     ]
 
 
-@patch("gogstash.download_queue.time.monotonic", return_value=100.0)
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.time.monotonic", return_value=100.0)
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_throttles_progress_but_still_lands_on_the_full_size(mock_resolve, mock_get, mock_clock, tmp_path):
     # Regression for #23: one progress emit per chunk buried the UI thread so
     # deep that a theme switch queued up behind it for seconds. Here the clock
@@ -463,9 +463,9 @@ def test_download_worker_throttles_progress_but_still_lands_on_the_full_size(moc
     assert events.progress == [(100, 1000), (1000, 1000)]
 
 
-@patch("gogstash.download_queue.time.monotonic")
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.time.monotonic")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_reports_every_chunk_on_a_slow_enough_connection(mock_resolve, mock_get, mock_clock, tmp_path):
     # The throttle is about time, not about shutting up after the first chunk.
     # A quarter second between chunks is a connection slow enough that every
@@ -483,8 +483,8 @@ def test_download_worker_reports_every_chunk_on_a_slow_enough_connection(mock_re
     assert events.progress[-1] == (1000, 1000)
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_resumes_a_part_file_with_a_range_request(mock_resolve, mock_get, tmp_path):
     game_dir = single_installer_setup(mock_resolve, tmp_path)
     old_bytes = b"a" * 400
@@ -513,8 +513,8 @@ def test_download_worker_resumes_a_part_file_with_a_range_request(mock_resolve, 
     assert not part_path.exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_starts_over_when_the_cdn_ignores_the_range_request(mock_resolve, mock_get, tmp_path):
     # We politely asked for bytes 400 onwards, the CDN shrugged and sent a 200
     # with the whole file anyway. Appending that to the .part would give us a
@@ -547,8 +547,8 @@ def test_download_worker_starts_over_when_the_cdn_ignores_the_range_request(mock
     assert not part_path.exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_skips_a_renamed_bonus_file_instead_of_tripping_over_the_missing_original(mock_resolve, mock_get, tmp_path):
     # Regression: check_exist hands back a manifest entry precisely *because*
     # the file is not at its expected path (the user renamed it). Asking that
@@ -587,8 +587,8 @@ def test_download_worker_skips_a_renamed_bonus_file_instead_of_tripping_over_the
     assert not (bonus_dir / "manual.zip").exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_skip_found_under_another_language_folder_is_recorded_there_and_counts_as_fetched(mock_resolve, mock_get, tmp_path):
     # Regression for #25: the worker skipped the _de copy but reported the
     # _en path, the scheduler found no entry there, and nothing got recorded.
@@ -626,8 +626,8 @@ def test_a_skip_found_under_another_language_folder_is_recorded_there_and_counts
     assert download_queue.generate_download_list((111,)) == []
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_resumes_a_bonus_file_and_checks_it_against_the_full_size(mock_resolve, mock_get, tmp_path):
     # Regression: bonus content has no MD5, so it is verified by size. A real
     # 206 reply reports Content-Length for the *remaining* bytes only, so
@@ -662,8 +662,8 @@ def test_download_worker_resumes_a_bonus_file_and_checks_it_against_the_full_siz
     assert not part_path.exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_skips_a_file_already_verified_in_the_manifest(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     game_dir = tmp_path / "fake-game"
@@ -694,8 +694,8 @@ def test_download_worker_skips_a_file_already_verified_in_the_manifest(mock_reso
     assert existing_file.read_bytes() == b"already have this one"  # untouched
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_skipping_a_file_never_touches_the_network_stream_or_disk(mock_resolve, mock_get, tmp_path):
     # More paranoid sibling of the "skips a file already verified" test above:
     # that one only proves a *read* of the stream blows up. This one proves
@@ -737,8 +737,8 @@ def test_download_worker_skipping_a_file_never_touches_the_network_stream_or_dis
     assert events.progress[-1][0] == len(b"already have this one")
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_redownloads_when_the_checksum_no_longer_matches(mock_resolve, mock_get, tmp_path):
     # A stale local copy (say, GOG shipped a build update) should not be
     # trusted just because check_exist() found something at the right size.
@@ -769,8 +769,8 @@ def test_download_worker_redownloads_when_the_checksum_no_longer_matches(mock_re
     assert existing_file.read_bytes() == chunk_a + chunk_b  # overwritten with the fresh copy
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_only_emits_succeeded_once_when_some_files_are_skipped(mock_resolve, mock_get, tmp_path):
     # Regression: the skip path used to call self.succeeded.emit() right there
     # in the per-file loop, on top of the one the for/else block fires at the
@@ -814,8 +814,8 @@ def test_download_worker_only_emits_succeeded_once_when_some_files_are_skipped(m
     assert not any("error" in entry for entry in events.fetched)
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_failure_does_not_also_emit_succeeded(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     # The checksum fetch succeeds fine, the actual download is the one that
@@ -839,8 +839,8 @@ def test_download_worker_failure_does_not_also_emit_succeeded(mock_resolve, mock
     assert "connection reset" in entry["error"]
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_reports_failed_not_succeeded_when_a_file_fails_but_the_worker_carries_on(
     mock_resolve, mock_get, tmp_path
 ):
@@ -868,7 +868,7 @@ def test_download_worker_reports_failed_not_succeeded_when_a_file_fails_but_the_
     assert not (game_dir / "setup_fake_game.exe.part").exists()
 
 
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_fails_immediately_when_no_valid_token(mock_resolve, tmp_path):
     # Regression: no token, no refresh_token, no soup for you. Auth checking
     # now lives inside gog_api.resolve_downlink(), which raises
@@ -889,8 +889,8 @@ def test_download_worker_fails_immediately_when_no_valid_token(mock_resolve, tmp
     assert events.fetched == []
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_stop_mid_chunk_deletes_part_file_and_emits_stopped(
     mock_resolve, mock_get, tmp_path
 ):
@@ -925,8 +925,8 @@ def _stop_after_first_chunk(mock_get):
     return thread
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_stopping_a_brand_new_game_leaves_no_empty_folders_behind(mock_resolve, mock_get, tmp_path):
     # Regression: cancelling a game's very first download left
     # fake-game/installer_windows_en/ sitting there, empty, forever, like a
@@ -942,15 +942,15 @@ def test_stopping_a_brand_new_game_leaves_no_empty_folders_behind(mock_resolve, 
     assert tmp_path.exists()  # tidy the game's folder, not the whole download folder
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_stopping_a_game_with_earlier_downloads_only_tidies_what_is_empty(mock_resolve, mock_get, tmp_path):
     # Regression: an unconditional rmdir() on a game folder that already held
     # a manifest blew up with "Directory not empty", and the stop came back
     # as a red "Failed" row instead of a quiet "Queued" one.
     game_dir = single_installer_setup(mock_resolve, tmp_path).parent
     (game_dir / "extras").mkdir(parents=True)
-    (game_dir / ".gogstash.manifest").write_text("{}")
+    (game_dir / ".shrewnut.manifest").write_text("{}")
     (game_dir / "patches").mkdir()
     (game_dir / "patches" / "patch_1.exe").write_bytes(b"finished, keep me")
     (game_dir / "patches" / "patch_2.exe.part").write_bytes(b"left over from a failed run")
@@ -961,7 +961,7 @@ def test_stopping_a_game_with_earlier_downloads_only_tidies_what_is_empty(mock_r
 
     assert events.stopped == 1
     assert events.failed == []
-    assert (game_dir / ".gogstash.manifest").exists()
+    assert (game_dir / ".shrewnut.manifest").exists()
     assert (game_dir / "patches" / "patch_1.exe").read_bytes() == b"finished, keep me"
     assert not (game_dir / "patches" / "patch_2.exe.part").exists()
     assert not (game_dir / "installer_windows_en").exists()
@@ -1009,11 +1009,11 @@ def _disk_fills_up(writes_that_fit=1, error_errno=errno.ENOSPC, on_close=False):
             return _FillingFile(fp, writes_that_fit, error_errno, on_close)
         return fp
 
-    return patch("gogstash.download_queue.open", fake_open, create=True)
+    return patch("shrewnut.download_queue.open", fake_open, create=True)
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_full_disk_mid_file_reports_disk_full_and_keeps_the_part_file(mock_resolve, mock_get, tmp_path):
     # Regression: errno 28 fell into the catch-all and came out as a plain
     # "failed", the next game got sent straight into the same full disk, and
@@ -1038,8 +1038,8 @@ def test_a_full_disk_mid_file_reports_disk_full_and_keeps_the_part_file(mock_res
     assert part_path.read_bytes() == b"a" * 400
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_full_disk_that_only_shows_up_when_the_file_closes_is_still_disk_full(mock_resolve, mock_get, tmp_path):
     # Every write() "worked" because it only went into Python's buffer. The
     # bill arrives at close(), and it still shouldn't be paid as a failure.
@@ -1069,8 +1069,8 @@ def _connection_dies_after(chunks):
     return stream
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_connection_dropping_mid_file_reports_network_error_and_keeps_the_part_file(mock_resolve, mock_get, tmp_path):
     # Regression (#29): a drop went down the per-file failure path, so the
     # file was written off and its 400 perfectly good bytes started over.
@@ -1091,8 +1091,8 @@ def test_a_connection_dropping_mid_file_reports_network_error_and_keeps_the_part
     assert part_path.read_bytes() == b"a" * 400
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_connection_reset_mid_file_is_a_network_error_too(mock_resolve, mock_get, tmp_path):
     # Found live against GOG: a reset mid-body is ChunkedEncodingError, a
     # different branch of the family tree than ConnectionError. Both games
@@ -1115,8 +1115,8 @@ def test_a_connection_reset_mid_file_is_a_network_error_too(mock_resolve, mock_g
     assert events.fetched == []
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_server_that_never_answers_the_download_request_is_a_network_error(mock_resolve, mock_get, tmp_path):
     # Silence before the headers is a real ReadTimeout, the other half of
     # the tuple the worker has to catch
@@ -1133,8 +1133,8 @@ def test_a_server_that_never_answers_the_download_request_is_a_network_error(moc
     assert events.fetched == []
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_connection_dropping_while_resolving_the_link_is_a_network_error(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     mock_resolve.side_effect = requests.exceptions.ConnectionError("Name or service not known")
@@ -1151,8 +1151,8 @@ def test_a_connection_dropping_while_resolving_the_link_is_a_network_error(mock_
     mock_get.assert_not_called()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_checksum_fetch_that_times_out_is_a_network_error(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     mock_get.side_effect = [requests.exceptions.ConnectTimeout()]
@@ -1165,8 +1165,8 @@ def test_a_checksum_fetch_that_times_out_is_a_network_error(mock_resolve, mock_g
     assert events.fetched == []
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_server_error_still_fails_just_that_file(mock_resolve, mock_get, tmp_path):
     # A 404 is the server answering, just not with what we wanted. The
     # connection is fine, so this stays a plain per-file failure.
@@ -1186,8 +1186,8 @@ def test_a_server_error_still_fails_just_that_file(mock_resolve, mock_get, tmp_p
     assert "404" in entry["error"]
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_drop_before_reaching_the_resumed_file_keeps_its_resume_link(mock_resolve, mock_get, tmp_path):
     # Resume re-checks every file in order, finished ones included, and each
     # check is a network call. Hit Resume while the network is still down
@@ -1293,8 +1293,8 @@ def test_a_worker_handed_nothing_at_all_still_fails():
     assert events.succeeded == 0
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_resuming_never_asks_gog_about_the_files_it_already_finished(mock_resolve, mock_get, tmp_path):
     # The installer finished before the pause. Resume goes straight to the
     # bonus file and the bar starts where it was, not at zero.
@@ -1316,8 +1316,8 @@ def test_resuming_never_asks_gog_about_the_files_it_already_finished(mock_resolv
     assert events.succeeded == 1
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_pausing_a_second_time_still_remembers_the_first_pauses_finished_files(mock_resolve, mock_get, tmp_path):
     # Pause, resume, pause again. Forget the installer here and the second
     # resume downloads it all over again.
@@ -1343,8 +1343,8 @@ def test_pausing_a_second_time_still_remembers_the_first_pauses_finished_files(m
     assert payload["downlink"] == bonus["downlink"]
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_file_that_failed_before_the_pause_gets_another_go_after_it(mock_resolve, mock_get, tmp_path):
     # A failed file is not a finished file. Count it as done and the resumed
     # worker skips it, never sets its failed flag, and reports the game a
@@ -1375,8 +1375,8 @@ def test_a_file_that_failed_before_the_pause_gets_another_go_after_it(mock_resol
     assert [f["downlink"] for f in resumed.file_queue] == [installer["downlink"], bonus["downlink"]]
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_other_write_errors_still_fail_the_game(mock_resolve, mock_get, tmp_path):
     # A dying USB stick is not a full one. EIO keeps its old, sadder path.
     single_installer_setup(mock_resolve, tmp_path)
@@ -1394,8 +1394,8 @@ def test_other_write_errors_still_fail_the_game(mock_resolve, mock_get, tmp_path
     assert len(events.failed) == 1
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_download_cut_short_by_a_full_disk_resumes_into_a_correct_file(mock_resolve, mock_get, tmp_path):
     # The promise behind keeping the .part: hand its payload to a fresh
     # worker once there's room again, and the finished file checksums clean.
@@ -1426,8 +1426,8 @@ def test_a_download_cut_short_by_a_full_disk_resumes_into_a_correct_file(mock_re
     assert (game_dir / "setup_fake_game.exe").read_bytes() == full
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_stop_after_full_download_still_saves_the_file(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1464,8 +1464,8 @@ def test_download_worker_stop_after_full_download_still_saves_the_file(
     assert written.read_bytes() == chunk_a + chunk_b
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_pause_mid_chunk_keeps_part_file_and_reports_where_it_is(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1494,8 +1494,8 @@ def test_download_worker_pause_mid_chunk_keeps_part_file_and_reports_where_it_is
     assert not (game_dir / "setup_fake_game.exe").exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_pause_after_full_download_saves_the_file_and_only_pauses_once(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1529,8 +1529,8 @@ def test_download_worker_pause_after_full_download_saves_the_file_and_only_pause
     assert written.read_bytes() == chunk_a + chunk_b
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_pause_landing_on_the_last_chunk_finishes_the_file_instead_of_pausing_on_it(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1559,8 +1559,8 @@ def test_download_worker_pause_landing_on_the_last_chunk_finishes_the_file_inste
     assert not (game_dir / "setup_fake_game.exe.part").exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_stop_landing_on_the_last_chunk_keeps_the_finished_file(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1587,8 +1587,8 @@ def test_download_worker_stop_landing_on_the_last_chunk_keeps_the_finished_file(
     assert not (game_dir / "setup_fake_game.exe.part").exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_can_still_pause_mid_file_when_the_server_wont_say_how_big_it_is(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1610,8 +1610,8 @@ def test_download_worker_can_still_pause_mid_file_when_the_server_wont_say_how_b
     assert part_path.read_bytes() == b"a" * 400
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_can_still_stop_mid_file_when_the_server_wont_say_how_big_it_is(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1631,8 +1631,8 @@ def test_download_worker_can_still_stop_mid_file_when_the_server_wont_say_how_bi
     assert not (game_dir / "setup_fake_game.exe").exists()
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_download_worker_unrelated_failure_with_stop_already_requested_does_not_also_emit_stopped(
     mock_resolve, mock_get, tmp_path
 ):
@@ -1708,8 +1708,8 @@ def canned_download_list(product_ids):
 
 
 def with_fake_workers(test):
-    test = patch("gogstash.download_queue.DownloadWorkerThread", FakeWorker)(test)
-    return patch("gogstash.download_queue.generate_download_list", canned_download_list)(test)
+    test = patch("shrewnut.download_queue.DownloadWorkerThread", FakeWorker)(test)
+    return patch("shrewnut.download_queue.generate_download_list", canned_download_list)(test)
 
 
 def make_scheduler(concurrency, count):
@@ -2286,8 +2286,8 @@ def test_stop_all_while_paused_tolerates_a_part_file_that_already_vanished(tmp_p
     assert stopped_events == [True]
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_stop_while_paused_deletes_the_part_file_a_real_worker_left_behind(mock_resolve, mock_get, tmp_path):
     # Regression: the worker's paused payload and the scheduler's stop_all()
     # each spelled the part-file key their own way (partfile, parthpath,
@@ -2308,8 +2308,8 @@ def test_stop_while_paused_deletes_the_part_file_a_real_worker_left_behind(mock_
     part_path = game_dir / "setup_fake_game.exe.part"
     assert part_path.exists()
 
-    with patch("gogstash.download_queue.DownloadWorkerThread", FakeWorker), \
-            patch("gogstash.download_queue.generate_download_list", canned_download_list):
+    with patch("shrewnut.download_queue.DownloadWorkerThread", FakeWorker), \
+            patch("shrewnut.download_queue.generate_download_list", canned_download_list):
         scheduler = make_scheduler(concurrency=1, count=1)
         scheduler.schedule()
         scheduler.pause_all()
@@ -2375,7 +2375,7 @@ def test_enqueue_mid_run_with_nothing_to_download_doesnt_succeed_behind_the_wind
     succeeded = []
     scheduler.game_succeeded.connect(succeeded.append)
 
-    with patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         scheduler.enqueue({"priority": 1, "product_id": 7})
 
     assert succeeded == []
@@ -2764,7 +2764,7 @@ def test_download_list_keeps_a_file_from_a_manifest_that_predates_downlinks(tmp_
 def test_download_list_reads_each_games_manifest_once_not_once_per_file(tmp_path):
     settings.update_setting("download_path", str(tmp_path))
 
-    with patch("gogstash.manifest.read_manifest", wraps=manifest.read_manifest) as spy:
+    with patch("shrewnut.manifest.read_manifest", wraps=manifest.read_manifest) as spy:
         result = download_queue.generate_download_list((111,))
 
     assert len(result) == 2  # installer + patch, so a per-file read would show up as 2
@@ -2790,7 +2790,7 @@ def test_worker_built_without_a_file_list_is_just_empty():
 def test_enqueue_reports_how_much_the_game_will_download():
     scheduler = download_queue.DownloadScheduler()
 
-    with patch("gogstash.download_queue.generate_download_list", lambda ids: canned_download_list(ids) * 3):
+    with patch("shrewnut.download_queue.generate_download_list", lambda ids: canned_download_list(ids) * 3):
         assert scheduler.enqueue({"priority": 0, "product_id": 7}) == 3
 
 
@@ -2807,7 +2807,7 @@ def test_game_with_nothing_left_to_download_succeeds_without_a_worker():
     # Regression: an up-to-date game got a worker anyway, which took one look
     # at its empty list and reported "No files to download" as a failure.
     scheduler = download_queue.DownloadScheduler()
-    with patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         scheduler.enqueue({"priority": 0, "product_id": 7})
     succeeded, finished_events = [], []
     scheduler.game_succeeded.connect(succeeded.append)
@@ -2824,7 +2824,7 @@ def test_game_with_nothing_left_to_download_succeeds_without_a_worker():
 # --- free space ---
 
 def _disk_with(free):
-    return patch("gogstash.download_queue.shutil.disk_usage", return_value=MagicMock(free=free))
+    return patch("shrewnut.download_queue.shutil.disk_usage", return_value=MagicMock(free=free))
 
 
 def _low_space_events(scheduler):
@@ -2878,7 +2878,7 @@ def test_free_space_check_counts_what_active_downloads_still_need():
     worker.total_size, worker.fetched_size = 100, 40
     events = _low_space_events(scheduler)
 
-    with _disk_with(free=50), patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with _disk_with(free=50), patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         scheduler.enqueue({"priority": 1, "product_id": 1})
         scheduler.schedule()
 
@@ -2978,7 +2978,7 @@ def test_free_space_check_fails_safe_when_the_download_folder_cant_be_made(tmp_p
 
 
 def _up_to_date_scheduler(count):
-    with patch("gogstash.download_queue.generate_download_list", lambda ids: []):
+    with patch("shrewnut.download_queue.generate_download_list", lambda ids: []):
         return make_scheduler(concurrency=1, count=count)
 
 
@@ -3303,7 +3303,7 @@ def test_a_lost_connection_during_a_stop_still_stops_and_cleans_up(tmp_path):
 
 def _one_big_game(size=100):
     big_list = lambda ids: [dict(item, size=size) for item in canned_download_list(ids)]
-    with patch("gogstash.download_queue.generate_download_list", big_list):
+    with patch("shrewnut.download_queue.generate_download_list", big_list):
         return make_scheduler(concurrency=1, count=1)
 
 
@@ -3386,7 +3386,7 @@ def test_a_game_that_came_in_smaller_than_listed_doesnt_eat_into_the_others():
 def _manifest_write_fails(error_errno=errno.ENOSPC):
     def dump(data, fp):
         raise OSError(error_errno, os.strerror(error_errno))
-    return patch("gogstash.manifest.json.dump", dump)
+    return patch("shrewnut.manifest.json.dump", dump)
 
 
 def _pause_and_resume(scheduler):
@@ -3492,8 +3492,8 @@ FAKE_DLC = gog_product(555, "Hat Simulator: Extra Hats", "hat-simulator-extra-ha
 })
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_dlc_download_lands_in_its_base_games_folder(mock_resolve, mock_get, tmp_path):
     library_db.update_cache([FAKE_BASE_GAME, FAKE_DLC])
     settings.update_setting("download_path", str(tmp_path))
@@ -3552,8 +3552,8 @@ def test_download_list_still_skips_a_file_on_the_current_version(tmp_path):
     assert by_file(download_queue.generate_download_list((111,)), "file1") is None
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_version_bump_with_an_unchanged_file_is_skipped_and_signed_off_with_the_new_version(mock_resolve, mock_get, tmp_path):
     # GOG bumped the version but this part of the installer didn't change.
     # The checksum says so, nothing gets downloaded, and the skip carries the
@@ -3589,7 +3589,7 @@ def test_scheduler_records_the_version_a_worker_reports(tmp_path):
     assert manifest.stat_file(game_dir, game_dir / "setup.exe")["version"] == "1.7.7.4"
 
 
-# --- what the scheduler tells gogstash.log ---
+# --- what the scheduler tells shrewnut.log ---
 
 WITCHER_3 = 1207658695  # an id that can't turn up in a message by accident, unlike 0
 
@@ -3604,15 +3604,15 @@ def _running_witcher():
 def _app_log(caplog, level=None):
     return [
         (r.levelname, r.getMessage()) for r in caplog.records
-        if r.name == "gogstash.download_queue" and (level is None or r.levelname == level)
+        if r.name == "shrewnut.download_queue" and (level is None or r.levelname == level)
     ]
 
 
 @with_fake_workers
 def test_a_game_that_downloads_fine_leaves_a_trail_by_product_id(caplog):
-    # downloads.log knows file names, gogstash.log knows which game. Between
+    # downloads.log knows file names, shrewnut.log knows which game. Between
     # the two, "the third game hung" becomes something you can look up.
-    with caplog.at_level("INFO", logger="gogstash.download_queue"):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"):
         scheduler, job = _running_witcher()
         job["worker"].succeeded.emit()
 
@@ -3626,7 +3626,7 @@ def test_a_game_that_downloads_fine_leaves_a_trail_by_product_id(caplog):
 def test_a_failed_game_logs_its_id_and_why(caplog):
     scheduler, job = _running_witcher()
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"):
         job["worker"].failed.emit("Downloads completed with failures")
 
     [(level, message)] = _app_log(caplog, "WARNING")
@@ -3638,7 +3638,7 @@ def test_a_failed_game_logs_its_id_and_why(caplog):
 def test_a_queue_that_wont_fit_logs_how_much_it_wanted_and_had(caplog):
     scheduler = make_scheduler(concurrency=2, count=2)
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"), _disk_with(free=1):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"), _disk_with(free=1):
         scheduler.schedule()
 
     [(_, message)] = _app_log(caplog, "WARNING")
@@ -3653,7 +3653,7 @@ def test_a_download_folder_that_cant_be_made_says_why_in_the_log(tmp_path, caplo
     settings.update_setting("download_path", str(locked))
     scheduler = make_scheduler(concurrency=1, count=1)
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"):
         with patch("pathlib.Path.mkdir", side_effect=PermissionError(13, "Permission denied")):
             scheduler.schedule()
 
@@ -3667,7 +3667,7 @@ def test_a_download_folder_that_cant_be_made_says_why_in_the_log(tmp_path, caplo
 def test_a_full_disk_or_a_dead_connection_names_the_game_that_hit_it(tmp_path, caplog, run_into_trouble):
     scheduler, job = _running_witcher()
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"):
         run_into_trouble(job, _part_file(tmp_path))
 
     [(_, message)] = _app_log(caplog, "WARNING")
@@ -3677,20 +3677,20 @@ def test_a_full_disk_or_a_dead_connection_names_the_game_that_hit_it(tmp_path, c
 
 @with_fake_workers
 def test_a_manifest_that_wont_take_a_file_keeps_its_traceback(tmp_path, caplog):
-    # downloads.log gets the one-liner for the user. gogstash.log gets the
+    # downloads.log gets the one-liner for the user. shrewnut.log gets the
     # whole autopsy for whoever has to fix it.
     scheduler, worker, game_dir = _scheduler_with_game_files(tmp_path, "a.exe")
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"), _manifest_write_fails(errno.EACCES):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"), _manifest_write_fails(errno.EACCES):
         worker.fetched.emit(_fetched_entry(game_dir, "a.exe", size=1))
 
-    [record] = [r for r in caplog.records if r.name == "gogstash.download_queue" and r.levelname == "ERROR"]
+    [record] = [r for r in caplog.records if r.name == "shrewnut.download_queue" and r.levelname == "ERROR"]
     assert "a.exe" in record.getMessage()
     assert record.exc_info[0] is PermissionError  # EACCES, as Python spells it
     assert sum("Error recording file" in line for line in _log_lines()) == 1  # the user's line is still there
 
 
-# --- what the worker tells gogstash.log, and what it never does ---
+# --- what the worker tells shrewnut.log, and what it never does ---
 
 SIGNED_CDN = "https://cdn.example.com/setup_fake_game.exe?token=SIGNED-SECRET"
 SIGNED_XML = "https://cdn.example.com/setup_fake_game.exe.xml?token=SIGNED-SECRET"
@@ -3699,7 +3699,7 @@ SIGNED_XML = "https://cdn.example.com/setup_fake_game.exe.xml?token=SIGNED-SECRE
 def _everything_logged(caplog):
     # Messages and tracebacks both, since log.exception leaks through the
     # traceback just as well as through the message.
-    return "\n".join(f"{r.getMessage()}\n{r.exc_text or ''}" for r in caplog.records if r.name == "gogstash.download_queue")
+    return "\n".join(f"{r.getMessage()}\n{r.exc_text or ''}" for r in caplog.records if r.name == "shrewnut.download_queue")
 
 
 def test_describe_error_keeps_a_requests_error_to_its_type_and_status():
@@ -3725,10 +3725,10 @@ def test_describe_error_tells_the_whole_story_for_everything_else():
     assert "setup.exe" in download_queue._describe_error(FileNotFoundError(2, "No such file", "setup.exe"))
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_cdn_error_names_its_status_but_never_its_signed_link(mock_resolve, mock_get, tmp_path, caplog):
-    # Signed links are a download pass for whoever holds one. gogstash.log
+    # Signed links are a download pass for whoever holds one. shrewnut.log
     # gets pasted into bug reports, so it holds the status code and that's it.
     single_installer_setup(mock_resolve, tmp_path)
     mock_resolve.return_value = {"downlink": SIGNED_CDN, "checksum": SIGNED_XML}
@@ -3738,7 +3738,7 @@ def test_a_cdn_error_names_its_status_but_never_its_signed_link(mock_resolve, mo
     )
     mock_get.side_effect = [make_checksum_response("abc"), cdn]
 
-    with caplog.at_level("DEBUG", logger="gogstash.download_queue"):
+    with caplog.at_level("DEBUG", logger="shrewnut.download_queue"):
         make_worker().run()
 
     logged = _everything_logged(caplog)
@@ -3746,8 +3746,8 @@ def test_a_cdn_error_names_its_status_but_never_its_signed_link(mock_resolve, mo
     assert "SIGNED-SECRET" not in logged
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_checksum_file_that_wont_load_never_leaks_its_signed_link(mock_resolve, mock_get, tmp_path, caplog):
     single_installer_setup(mock_resolve, tmp_path)
     mock_resolve.return_value = {"downlink": SIGNED_CDN, "checksum": SIGNED_XML}
@@ -3757,7 +3757,7 @@ def test_a_checksum_file_that_wont_load_never_leaks_its_signed_link(mock_resolve
     )
     mock_get.return_value = checksum
 
-    with caplog.at_level("DEBUG", logger="gogstash.download_queue"):
+    with caplog.at_level("DEBUG", logger="shrewnut.download_queue"):
         make_worker().run()
 
     logged = _everything_logged(caplog)
@@ -3766,8 +3766,8 @@ def test_a_checksum_file_that_wont_load_never_leaks_its_signed_link(mock_resolve
     assert not [r for r in caplog.records if r.levelname == "ERROR"]  # no traceback, it would carry the link
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_connection_dropping_mid_file_logs_the_kind_of_drop_and_nothing_else(mock_resolve, mock_get, tmp_path, caplog):
     single_installer_setup(mock_resolve, tmp_path)
     mock_resolve.return_value = {"downlink": SIGNED_CDN, "checksum": SIGNED_XML}
@@ -3776,7 +3776,7 @@ def test_a_connection_dropping_mid_file_logs_the_kind_of_drop_and_nothing_else(m
         requests.ConnectionError(f"HTTPSConnectionPool(host='cdn.example.com'): Max retries exceeded with url: {SIGNED_CDN}"),
     ]
 
-    with caplog.at_level("DEBUG", logger="gogstash.download_queue"):
+    with caplog.at_level("DEBUG", logger="shrewnut.download_queue"):
         make_worker().run()
 
     [warning] = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
@@ -3784,8 +3784,8 @@ def test_a_connection_dropping_mid_file_logs_the_kind_of_drop_and_nothing_else(m
     assert "SIGNED-SECRET" not in _everything_logged(caplog)
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_a_checksum_mismatch_logs_both_hashes_and_both_sizes(mock_resolve, mock_get, tmp_path, caplog):
     # "Checksum mismatch" alone can't tell a truncated download from a
     # corrupted one. Both md5s and both sizes can.
@@ -3793,7 +3793,7 @@ def test_a_checksum_mismatch_logs_both_hashes_and_both_sizes(mock_resolve, mock_
     body = b"x" * 1000
     mock_get.side_effect = [make_checksum_response("0" * 32), make_streamed_response([body])]
 
-    with caplog.at_level("INFO", logger="gogstash.download_queue"):
+    with caplog.at_level("INFO", logger="shrewnut.download_queue"):
         make_worker().run()
 
     [warning] = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
@@ -3803,8 +3803,8 @@ def test_a_checksum_mismatch_logs_both_hashes_and_both_sizes(mock_resolve, mock_
     assert "setup_fake_game.exe" in warning
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_the_download_history_names_the_status_but_never_the_signed_cdn_link(mock_resolve, mock_get, tmp_path):
     # downloads.log is the user's own history, but it's still a file on disk
     # that gets shared. A link that downloads the game for anyone holding it
@@ -3826,8 +3826,8 @@ def test_the_download_history_names_the_status_but_never_the_signed_cdn_link(moc
     assert "SIGNED-SECRET" not in line
 
 
-@patch("gogstash.download_queue.requests.get")
-@patch("gogstash.gog_api.resolve_downlink")
+@patch("shrewnut.download_queue.requests.get")
+@patch("shrewnut.gog_api.resolve_downlink")
 def test_the_download_history_never_gets_the_signed_checksum_link_either(mock_resolve, mock_get, tmp_path):
     single_installer_setup(mock_resolve, tmp_path)
     mock_resolve.return_value = {"downlink": SIGNED_CDN, "checksum": SIGNED_XML}

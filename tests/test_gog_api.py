@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from gogstash import gog_api
-from gogstash.constants import HTTP_TIMEOUT
+from shrewnut import gog_api
+from shrewnut.constants import HTTP_TIMEOUT
 
 
 FAKE_TOKEN = {"access_token": "mytoken"}
@@ -19,8 +19,8 @@ def make_response(json_data, status_code=200):
     return response
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_returns_owned_list_as_a_set(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     mock_get.return_value = make_response({"owned": [1207658695, 1456702644, 1293681291]})
@@ -39,9 +39,9 @@ def test_fetch_owned_ids_returns_owned_list_as_a_set(mock_get_valid_token, mock_
     assert result == {1207658695, 1456702644, 1293681291}
 
 
-@patch("gogstash.gog_api.gog_auth.clear_token")
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.gog_auth.clear_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_treats_login_redirect_as_auth_failure(mock_get_valid_token, mock_get, mock_clear_token):
     # GOG doesn't say 401, it just shows you the door: 302 to /en##openlogin
     mock_get_valid_token.return_value = FAKE_TOKEN
@@ -56,9 +56,9 @@ def test_fetch_owned_ids_treats_login_redirect_as_auth_failure(mock_get_valid_to
     response.json.assert_not_called()
 
 
-@patch("gogstash.gog_api.gog_auth.clear_token")
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.gog_auth.clear_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_a_rejected_token_says_so_in_the_log(mock_get_valid_token, mock_get, mock_clear_token, caplog):
     # Not logged in and logged in with a token GOG has stopped liking raise
     # the same exception. The log is where the two part ways.
@@ -67,7 +67,7 @@ def test_a_rejected_token_says_so_in_the_log(mock_get_valid_token, mock_get, moc
     response.is_redirect = True
     mock_get.return_value = response
 
-    with caplog.at_level("INFO", logger="gogstash.gog_api"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_api"):
         with pytest.raises(gog_api.AuthenticationFailure):
             gog_api.fetch_owned_ids()
 
@@ -76,8 +76,8 @@ def test_a_rejected_token_says_so_in_the_log(mock_get_valid_token, mock_get, moc
     assert "mytoken" not in record.getMessage()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_returns_empty_set_for_an_empty_library(mock_get_valid_token, mock_get):
     # Owning nothing is a lifestyle choice, not an error
     mock_get_valid_token.return_value = FAKE_TOKEN
@@ -86,8 +86,8 @@ def test_fetch_owned_ids_returns_empty_set_for_an_empty_library(mock_get_valid_t
     assert gog_api.fetch_owned_ids() == set()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_raises_on_http_error_status(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     response = make_response({})
@@ -98,8 +98,8 @@ def test_fetch_owned_ids_raises_on_http_error_status(mock_get_valid_token, mock_
         gog_api.fetch_owned_ids()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_raises_when_owned_key_is_missing(mock_get_valid_token, mock_get):
     # A 200 with no "owned" list must not pass for an empty library and wipe the cache
     mock_get_valid_token.return_value = FAKE_TOKEN
@@ -109,8 +109,8 @@ def test_fetch_owned_ids_raises_when_owned_key_is_missing(mock_get_valid_token, 
         gog_api.fetch_owned_ids()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_owned_ids_raises_auth_failure_when_not_logged_in(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = None
 
@@ -120,8 +120,8 @@ def test_fetch_owned_ids_raises_auth_failure_when_not_logged_in(mock_get_valid_t
     mock_get.assert_not_called()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_get_downloadable_single_batch_under_50(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     mock_get.return_value = make_response([{"id": 1}, {"id": 2}, {"id": 3}])
@@ -137,8 +137,8 @@ def test_get_downloadable_single_batch_under_50(mock_get_valid_token, mock_get):
     assert result == [{"id": 1}, {"id": 2}, {"id": 3}]
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_get_downloadable_splits_into_chunks_of_50(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     ids = list(range(1, 121))  # 120 ids -> chunks of 50, 50, 20
@@ -163,8 +163,8 @@ def test_get_downloadable_splits_into_chunks_of_50(mock_get_valid_token, mock_ge
 
 
 @pytest.mark.parametrize("status_code", [302, 500])
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_a_failed_batch_raises_instead_of_passing_for_a_finished_library(mock_get_valid_token, mock_get, caplog, status_code):
     # Returning what it had would let a refresh "succeed" with half a library,
     # or none of it. 302 counts too: raise_for_status() waves redirects through.
@@ -174,7 +174,7 @@ def test_a_failed_batch_raises_instead_of_passing_for_a_finished_library(mock_ge
         make_response({"error": "nope"}, status_code=status_code),
     ]
 
-    with caplog.at_level("INFO", logger="gogstash.gog_api"):
+    with caplog.at_level("INFO", logger="shrewnut.gog_api"):
         with pytest.raises(requests.HTTPError) as raised:
             gog_api.fetch_downloadables(list(range(1, 121)))
 
@@ -187,8 +187,8 @@ def test_a_failed_batch_raises_instead_of_passing_for_a_finished_library(mock_ge
     assert "mytoken" not in record.getMessage()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_get_downloadable_empty_input_makes_no_requests(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
 
@@ -198,8 +198,8 @@ def test_get_downloadable_empty_input_makes_no_requests(mock_get_valid_token, mo
     assert result == []
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_downloadables_stops_between_batches_when_asked(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     mock_get.return_value = make_response([{"id": "batch"}])
@@ -213,8 +213,8 @@ def test_fetch_downloadables_stops_between_batches_when_asked(mock_get_valid_tok
     assert mock_get.call_count == 1
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_downloadables_runs_to_the_end_when_never_asked_to_stop(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     mock_get.return_value = make_response([{"id": "batch"}])
@@ -225,8 +225,8 @@ def test_fetch_downloadables_runs_to_the_end_when_never_asked_to_stop(mock_get_v
     assert len(result) == 3
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_fetch_downloadables_raises_auth_failure_when_not_logged_in(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = None
 
@@ -236,8 +236,8 @@ def test_fetch_downloadables_raises_auth_failure_when_not_logged_in(mock_get_val
     mock_get.assert_not_called()
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_resolve_downlink_returns_cdn_url_and_checksum(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = FAKE_TOKEN
     mock_get.return_value = make_response({
@@ -258,8 +258,8 @@ def test_resolve_downlink_returns_cdn_url_and_checksum(mock_get_valid_token, moc
     }
 
 
-@patch("gogstash.gog_api.requests.get")
-@patch("gogstash.gog_api.gog_auth.get_valid_token")
+@patch("shrewnut.gog_api.requests.get")
+@patch("shrewnut.gog_api.gog_auth.get_valid_token")
 def test_resolve_downlink_raises_auth_failure_when_not_logged_in(mock_get_valid_token, mock_get):
     mock_get_valid_token.return_value = None
 

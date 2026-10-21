@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from gogstash import paths, settings
+from shrewnut import paths, settings
 
 
 def test_create_settings_writes_default_settings_file():

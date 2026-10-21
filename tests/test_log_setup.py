@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gogstash import log_setup, paths
+from shrewnut import log_setup, paths
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ class _Collector(logging.Handler):
 
 def test_download_log_stays_out_of_the_app_log(download_logger, tmp_path):
     log_setup.setup_download_log(tmp_path / "logs" / "downloads.log")
-    # Stands in for gogstash.log's handler on the root logger. Not caplog:
+    # Stands in for shrewnut.log's handler on the root logger. Not caplog:
     # pytest 9 also clips its capture handlers straight onto loggers that
     # don't propagate, so caplog would hear the line either way.
     root, app_log = logging.getLogger(), _Collector()
@@ -122,14 +122,14 @@ def test_download_log_stays_out_of_the_app_log(download_logger, tmp_path):
     finally:
         root.removeHandler(app_log)
 
-    # Every fetched file in gogstash.log too would bury the one traceback
+    # Every fetched file in shrewnut.log too would bury the one traceback
     # someone actually came looking for.
     assert app_log.records == []
 
 
 def test_urllib3_keeps_its_request_lines_to_itself_even_at_debug(basic_config, request):
     # urllib3 logs every request's full path and query at DEBUG: refresh
-    # tokens, login codes, signed CDN links, the lot. Turning gogstash.log
+    # tokens, login codes, signed CDN links, the lot. Turning shrewnut.log
     # down to DEBUG one day must not turn it into a keyring.
     root, urllib3_logger = logging.getLogger(), logging.getLogger("urllib3")
     old_levels = root.level, urllib3_logger.level

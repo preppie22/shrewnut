@@ -16,9 +16,9 @@ import requests
 import logging
 from enum import IntEnum
 
-from gogstash import gog_auth
-from gogstash.paths import LogFile, log_file_path
-from gogstash.log_setup import setup_logging
+from shrewnut import gog_auth
+from shrewnut.paths import LogFile, log_file_path
+from shrewnut.log_setup import setup_logging
 
 class ExitCode(IntEnum):
     """How the login helper ended, reported through its exit code.
@@ -190,7 +190,7 @@ class LoginWindow():
 def main():
     """Run the login helper and exit with its ``ExitCode``.
 
-    Both ``python -m gogstash.login_window`` and the frozen build's
+    Both ``python -m shrewnut.login_window`` and the frozen build's
     ``--login-helper`` start here. The helper is its own process, so it
     sets up its own logging, to ``login.log`` rather than the main
     window's ``shrewnut.log``.

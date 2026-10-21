@@ -48,7 +48,7 @@ COPY . /build/
 
 RUN python3.12 -m venv /build/.venv
 RUN /build/.venv/bin/pip install ".[dev,packaging]"
-RUN /build/.venv/bin/pyinstaller --noconfirm --clean /build/packaging/pyinstaller/gogstash.spec
+RUN /build/.venv/bin/pyinstaller --noconfirm --clean /build/packaging/pyinstaller/shrewnut.spec
 RUN mkdir -p /build/AppDir/usr/bin \
     && cp -r /build/dist/shrewnut /build/AppDir/usr/bin/ \
     && cp -r /build/packaging/appimage/* /build/AppDir/ \

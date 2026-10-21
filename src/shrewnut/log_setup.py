@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Name of the logger that writes the download history. Anything logged to
 # it goes to downloads.log only, once setup_download_log has run.
-DOWNLOAD_LOGGER = "gogstash.downloads"
+DOWNLOAD_LOGGER = "shrewnut.downloads"
 
 def _rotating_handler(log_file: Path, max_bytes: int = 2*1024*1024, backup_count: int = 3) -> logging.handlers.RotatingFileHandler:
     """Build a UTF-8 handler that rolls a log file over once it gets too big.
