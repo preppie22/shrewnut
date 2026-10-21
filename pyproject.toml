@@ -25,10 +25,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/preppie22/gogstash"
+Homepage = "https://github.com/shrewnut/gogstash"
 
 [project.scripts]
-gogstash = "gogstash.main:main"
+shrewnut = "gogstash.main:main"
 
 [project.optional-dependencies]
 dev = [

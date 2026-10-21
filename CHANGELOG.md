@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to GogStash will be documented in this file.
+All notable changes to Shrewnut will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage

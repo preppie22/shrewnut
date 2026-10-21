@@ -6,12 +6,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion! If the idea is still fuzzy and you'd like to talk it through first, [Discussions](https://github.com/preppie22/gogstash/discussions) is a good place for that.
+        Thanks for the suggestion! If the idea is still fuzzy and you'd like to talk it through first, [Discussions](https://github.com/preppie22/shrewnut/discussions) is a good place for that.
 
   - type: textarea
     id: feature
     attributes:
-      label: What would you like GogStash to do?
+      label: What would you like Shrewnut to do?
       description: Describe the feature or change.
     validations:
       required: true

@@ -7,13 +7,13 @@ body:
     attributes:
       value: |
         Thanks for taking the time to report this! The more detail you give, the faster I can track it down.
-        Got a question rather than a bug? Try [Discussions](https://github.com/preppie22/gogstash/discussions) instead.
+        Got a question rather than a bug? Try [Discussions](https://github.com/preppie22/shrewnut/discussions) instead.
 
   - type: input
     id: version
     attributes:
       label: Version
-      description: The release you downloaded, as shown on the [Releases page](https://github.com/preppie22/gogstash/releases).
+      description: The release you downloaded, as shown on the [Releases page](https://github.com/preppie22/shrewnut/releases).
       placeholder: e.g. 2026.9.26-beta2
     validations:
       required: true

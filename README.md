@@ -1,26 +1,28 @@
 <p align="center">
   <picture>
-    <img src="packaging/icons/logo_512.png" alt="GogStash" width="300"/>
+    <img src="packaging/icons/logo_512.png" alt="Shrewnut" width="300"/>
   </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/preppie22/gogstash/releases/latest"><img src="https://img.shields.io/github/v/release/preppie22/gogstash?include_prereleases" alt="Latest release"/></a>
-  <a href="https://github.com/preppie22/gogstash/releases"><img src="https://img.shields.io/github/downloads/preppie22/gogstash/total" alt="Total downloads"/></a>
+  <a href="https://github.com/preppie22/shrewnut/releases/latest"><img src="https://img.shields.io/github/v/release/preppie22/shrewnut?include_prereleases" alt="Latest release"/></a>
+  <a href="https://github.com/preppie22/shrewnut/releases"><img src="https://img.shields.io/github/downloads/preppie22/shrewnut/total" alt="Total downloads"/></a>
   <a href="#status"><img src="https://img.shields.io/badge/status-beta-orange" alt="Status: beta"/></a>
-  <a href="https://github.com/preppie22/gogstash/commits/dev"><img src="https://img.shields.io/github/last-commit/preppie22/gogstash/dev" alt="Last commit on dev"/></a>
+  <a href="https://github.com/preppie22/shrewnut/commits/dev"><img src="https://img.shields.io/github/last-commit/preppie22/shrewnut/dev" alt="Last commit on dev"/></a>
   <a href="#download"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey" alt="Platforms: Linux | Windows"/></a>
   <a href="https://doc.qt.io/qtforpython-6/"><img src="https://img.shields.io/badge/built%20with-Qt%20(PySide6)-41CD52?logo=qt&logoColor=white" alt="Built with Qt (PySide6)"/></a>
 </p>
 
-# GogStash
+# Shrewnut 
+
+_Formerly GogStash_
 
 A desktop GUI application for downloading local backups
 of your GOG.com game library.
 
 <p align="center">
   <picture>
-    <img src="docs/demo.gif" alt="GogStash queueing and downloading games"/>
+    <img src="docs/demo.gif" alt="Shrewnut queueing and downloading games"/>
   </picture>
 </p>
 
@@ -49,13 +51,13 @@ The app is fully functional at this point. Fair warning though: don't set the do
 > [!NOTE]
 > This application is currently in **beta**. All features are tested and working but there may be bugs.
 
-I'd appreciate your feedback on bugs, features, or improvements in the [issues section](https://github.com/preppie22/gogstash/issues).
+I'd appreciate your feedback on bugs, features, or improvements in the [issues section](https://github.com/preppie22/shrewnut/issues).
 
 <div align="center">
 
 | | Linux | Windows |
 | :-: | :-: | :-: |
-| [![GitHub Release](https://img.shields.io/github/v/release/preppie22/gogstash?style=for-the-badge&logo=github)](https://github.com/preppie22/gogstash/releases/latest) |  [![Linux Download](https://img.shields.io/badge/AppImage-Download-green?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/preppie22/gogstash/releases/latest/download/gogstash-x86_64.AppImage) | [![Windows Download](https://img.shields.io/badge/ZIP-Download-blue?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tISBGb250IEF3ZXNvbWUgRnJlZSA2LjcuMiBieSBAZm9udGF3ZXNvbWUgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbSBMaWNlbnNlIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20vbGljZW5zZS9mcmVlIChJY29uczogQ0MgQlkgNC4wLCBGb250czogU0lMIE9GTCAxLjEsIENvZGU6IE1JVCBMaWNlbnNlKSBDb3B5cmlnaHQgMjAyNCBGb250aWNvbnMsIEluYy4gLS0%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgOTMuN2wxODMuNi0yNS4zdjE3Ny40SDBWOTMuN3ptMCAzMjQuNmwxODMuNiAyNS4zVjI2OC40SDB2MTQ5Ljl6bTIwMy44IDI4TDQ0OCA0ODBWMjY4LjRIMjAzLjh2MTc3Ljl6bTAtMzgwLjZ2MTgwLjFINDQ4VjMyTDIwMy44IDY1Ljd6Ii8%2BPC9zdmc%2B)](https://github.com/preppie22/gogstash/releases/latest/download/gogstash-x86_64-windows.zip) | 
+| [![GitHub Release](https://img.shields.io/github/v/release/preppie22/shrewnut?style=for-the-badge&logo=github)](https://github.com/preppie22/shrewnut/releases/latest) |  [![Linux Download](https://img.shields.io/badge/AppImage-Download-green?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64.AppImage) | [![Windows Download](https://img.shields.io/badge/ZIP-Download-blue?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tISBGb250IEF3ZXNvbWUgRnJlZSA2LjcuMiBieSBAZm9udGF3ZXNvbWUgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbSBMaWNlbnNlIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20vbGljZW5zZS9mcmVlIChJY29uczogQ0MgQlkgNC4wLCBGb250czogU0lMIE9GTCAxLjEsIENvZGU6IE1JVCBMaWNlbnNlKSBDb3B5cmlnaHQgMjAyNCBGb250aWNvbnMsIEluYy4gLS0%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgOTMuN2wxODMuNi0yNS4zdjE3Ny40SDBWOTMuN3ptMCAzMjQuNmwxODMuNiAyNS4zVjI2OC40SDB2MTQ5Ljl6bTIwMy44IDI4TDQ0OCA0ODBWMjY4LjRIMjAzLjh2MTc3Ljl6bTAtMzgwLjZ2MTgwLjFINDQ4VjMyTDIwMy44IDY1Ljd6Ii8%2BPC9zdmc%2B)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64-windows.zip) | 
 
 </div>
 
@@ -65,7 +67,7 @@ I'd appreciate your feedback on bugs, features, or improvements in the [issues s
 
 ### Windows Users
 
-Extract the zip and run the `gogstash.exe` file inside the extracted folder. Note that `gogstash.exe` depends on the `lib` folder.
+Extract the zip and run the `shrewnut.exe` file inside the extracted folder. Note that `shrewnut.exe` depends on the `lib` folder.
 So, make sure it's there alongside the exe file. Auto-update functionality is for Linux only.
 
 > [!IMPORTANT]
@@ -87,12 +89,12 @@ Run the AppImage file. You can use AppImageUpdate or GearLever to manage this ap
 5. Click on `Start Downloads` to begin downloading.
 
 > [!TIP]
-> Games will download to a folder called GogStash in your default "Download" location. You can change this in the settings.
+> Games will download to a folder called Shrewnut in your default "Download" location. You can change this in the settings. People upgrading from GogStash will keep their folder settings.
 
 ## To Do
 
 This list tracks the functionality expected in the program. Features and bugs will
-be tracked in the [issues section](https://github.com/preppie22/gogstash/issues) from now on.
+be tracked in the [issues section](https://github.com/preppie22/shrewnut/issues) from now on.
 
 **Beta Release:**
 <details>
@@ -123,7 +125,7 @@ This section is for developers and tinkerers.
 ### Project Layout
 
 ```
-GogStash/
+shrewnut/
 ├── docs/                # README demo and screenshots
 ├── src/
 │   └── gogstash/
@@ -153,8 +155,8 @@ GogStash/
 
 **Linux**
 ```bash
-git clone https://github.com/preppie22/gogstash.git
-cd gogstash
+git clone https://github.com/preppie22/shrewnut.git
+cd shrewnut
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -165,8 +167,8 @@ pip install -e ".[dev]"
 > Use python from **python.org** and not the MS Store one. If you're using the MS Store version, it redirects the config directory.
 
 ```pwsh
-git clone https://github.com/preppie22/gogstash.git
-cd gogstash
+git clone https://github.com/preppie22/shrewnut.git
+cd shrewnut
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
@@ -177,16 +179,16 @@ pip install -e ".[dev]"
 **Run it with**
 
 ```bash
-gogstash
+shrewnut
 ```
 
 ### Config Directory
 
 | Platform  | Path  |
 | -         |     - |
-| Linux     | `~/.config/gogstash/` or `$XDG_CONFIG_HOME/gogstash/` |
-| Windows   | `%USERPROFILE%\AppData\Local\gogstash\`               |
-| MacOS     | `~/Library/Application Support/gogstash/`             |
+| Linux     | `~/.config/shrewnut/` or `$XDG_CONFIG_HOME/shrewnut/` |
+| Windows   | `%USERPROFILE%\AppData\Local\shrewnut\`               |
+| MacOS     | `~/Library/Application Support/shrewnut/`             |
 
 ## AI Disclosure
 
