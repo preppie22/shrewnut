@@ -22,7 +22,7 @@ def isolated_config_dir(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def isolated_download_dir(tmp_path, monkeypatch):
-    """The default download_path is the user's real ~/Downloads/GogStash, baked in
+    """The default download_path is the user's real ~/Downloads/Shrewnut, baked in
     at import time. The scheduler's free-space check will happily mkdir it, so
     keep every test that never sets its own path out of the real Downloads folder."""
     from gogstash import settings

@@ -1676,3 +1676,51 @@ def test_a_mangled_token_file_opens_logged_out_instead_of_crashing():
 
     assert window.status_text.text() == "Not logged in"
     assert "red" in window.logged_in_indicator.styleSheet()
+
+
+# --- GogStash -> Shrewnut: main() and the config folder move ---
+
+def test_main_logs_when_it_moved_the_old_config_folder(monkeypatch, caplog):
+    # "My settings vanished" bug reports start here.
+    monkeypatch.setattr(gogstash_main, "migrate_config", lambda: True)
+    with caplog.at_level("INFO", logger="gogstash.main"):
+        run = _MainRun(monkeypatch)
+    run.close()
+
+    assert "config migrated from GogStash to Shrewnut" in caplog.messages
+
+
+def test_main_says_nothing_about_a_move_that_never_happened(monkeypatch, caplog):
+    monkeypatch.setattr(gogstash_main, "migrate_config", lambda: False)
+    with caplog.at_level("INFO", logger="gogstash.main"):
+        run = _MainRun(monkeypatch)
+    run.close()
+
+    assert "config migrated from GogStash to Shrewnut" not in caplog.messages
+
+
+def test_main_stops_at_a_failed_move_before_anything_touches_the_new_folder(monkeypatch, tmp_path):
+    # Regression bait: carry on after the dialog and setup_logging makes the
+    # new folder, the move never gets another try, and the user starts over
+    # logged out with their downloads "gone". The dialog is the only record,
+    # so Windows' complaint has to be in it.
+    def refuse():
+        raise PermissionError(13, "[WinError 5] Access is denied")
+    monkeypatch.setattr(gogstash_main, "migrate_config", refuse)
+    monkeypatch.setattr(gogstash_main, "QApplication", MagicMock())
+    message_box = MagicMock()
+    monkeypatch.setattr(gogstash_main, "QMessageBox", message_box)
+    setup_logging = MagicMock()
+    monkeypatch.setattr(gogstash_main, "setup_logging", setup_logging)
+    window = MagicMock()
+    monkeypatch.setattr(gogstash_main, "MainWindow", window)
+
+    with pytest.raises(SystemExit) as exit_info:
+        gogstash_main.main()
+
+    assert exit_info.value.code == 1
+    assert "[WinError 5] Access is denied" in message_box.call_args.kwargs["detailedText"]
+    message_box.return_value.exec.assert_called_once()
+    setup_logging.assert_not_called()
+    window.assert_not_called()
+    assert not (tmp_path / "logs").exists()

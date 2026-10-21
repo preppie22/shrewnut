@@ -58,7 +58,7 @@ from gogstash.settings import read_setting, update_setting
 from gogstash.manifest import read_manifest, check_exist_by_downlink
 from gogstash.download_window import DownloadWindow, UserRole, DownloadState
 from gogstash.icon_utils import get_icon, get_logo, status_indicator
-from gogstash.paths import LogFile, log_file_path
+from gogstash.paths import LogFile, log_file_path, migrate_config
 from gogstash.log_setup import setup_logging, setup_download_log
 
 log = logging.getLogger(__name__)
@@ -138,6 +138,8 @@ class MainWindow(QMainWindow):
         self.quit_pending = False
         self.fetch_thread = None
 
+        self.error_message = QErrorMessage()
+
         # Login Helper Process
         self.login_process = QProcess(self)
         self.login_process.finished.connect(self.on_login_finished)
@@ -166,8 +168,6 @@ class MainWindow(QMainWindow):
         self.main_toolbar = self.addToolBar("Main")
         self.main_toolbar.setMovable(False)
         
-        self.error_message = QErrorMessage()
-
         # Login
         self.login_menu = QMenu(self)
         self.login_internal_action = QAction("Log in through GogStash", self.login_menu)
@@ -844,7 +844,21 @@ def main():
     the frozen build.
     """
     app = QApplication(sys.argv)
+    try:
+        config_moved = migrate_config()
+    except OSError as e:
+        QMessageBox(
+            QMessageBox.Icon.Critical,
+            "Migration Error",
+            "Error migrating from GogStash to Shrewnut",
+            QMessageBox.StandardButton.Ok,
+            informativeText="Close GogStash, then start Shrewnut again.",
+            detailedText=f"{str(e)}"
+        ).exec()
+        sys.exit(1)
     setup_logging(log_file_path(LogFile.APP_LOG))
+    if config_moved:
+        log.info("config migrated from GogStash to Shrewnut")
     setup_download_log(log_file_path(LogFile.DOWNLOAD_LOG))
     sys.excepthook = _log_unhandled_exception
     log.info(f"Starting GogStash {importlib.metadata.version("gogstash")} on {platform.platform()}, "
