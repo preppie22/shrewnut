@@ -153,6 +153,9 @@ shrewnut/
 > [!TIP]
 > Make sure you use a virtual environment of some sort. The code is relatively platform independent.
 
+> [!TIP]
+> If you use `uv`, the two equivalents are `uv venv`  and `uv pip install -e ".[dev]"`
+
 **Linux**
 ```bash
 git clone https://github.com/preppie22/shrewnut.git
