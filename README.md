@@ -4,6 +4,11 @@
   </picture>
 </p>
 
+<h1 align="center">
+Shrewnut<br>
+<sub><small><em>Formerly GogStash</em></small></sub>
+</h1>
+
 <p align="center">
   <a href="https://github.com/preppie22/shrewnut/releases/latest"><img src="https://img.shields.io/github/v/release/preppie22/shrewnut?include_prereleases" alt="Latest release"/></a>
   <a href="https://github.com/preppie22/shrewnut/releases"><img src="https://img.shields.io/github/downloads/preppie22/shrewnut/total" alt="Total downloads"/></a>
@@ -12,10 +17,6 @@
   <a href="#download"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey" alt="Platforms: Linux | Windows"/></a>
   <a href="https://doc.qt.io/qtforpython-6/"><img src="https://img.shields.io/badge/built%20with-Qt%20(PySide6)-41CD52?logo=qt&logoColor=white" alt="Built with Qt (PySide6)"/></a>
 </p>
-
-# Shrewnut 
-
-_Formerly GogStash_
 
 A desktop GUI application for downloading local backups
 of your GOG.com game library.
@@ -198,13 +199,14 @@ shrewnut
 **All source code has been written by the author of this project.** 
 
 AI (Claude) was used for the following tasks:
-- Assist in writing test cases to cover a wide range of cases
+- Assist in writing unit tests to cover a wide range of cases
 - Hunting down bugs in the code (read only). Fixes were not written by AI.
 - Maintaining a to do list of stuff that's pending and a log of stuff that was done.
 - Documentation in the code (docstrings only).
 - Updating the CHANGELOG file.
 - Descriptions in commit messages.
 - Assist in writing the CI release workflow
+- Assist in adapting public domain clip art into the logo/icon
 
 Everything written by the AI was thoroughly vetted before inclusion.
 
@@ -212,7 +214,9 @@ Everything written by the AI was thoroughly vetted before inclusion.
 
 This project uses
 - PySide6, licensed under [LGPLv3](https://opensource.org/license/lgpl-3-0). See https://www.qt.io/licensing for details.
-- Freehand color icons by [Streamline](http://streamlinehq.com) licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 
+- Freehand color icons by [Streamline](http://streamlinehq.com) licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- ["Cartoon acorn"](https://openclipart.org/detail/17617/cartoon-acorn) by lemmling (public domain)
+- ["download"](https://openclipart.org/detail/172551/download) by jongo_jingaro (public domain)
 
 ## License
 
