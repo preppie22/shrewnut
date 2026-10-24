@@ -216,7 +216,6 @@ This project uses
 - PySide6, licensed under [LGPLv3](https://opensource.org/license/lgpl-3-0). See https://www.qt.io/licensing for details.
 - Freehand color icons by [Streamline](http://streamlinehq.com) licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - ["Cartoon acorn"](https://openclipart.org/detail/17617/cartoon-acorn) by lemmling (public domain)
-- ["download"](https://openclipart.org/detail/172551/download) by jongo_jingaro (public domain)
 
 ## License
 
