@@ -40,13 +40,16 @@ def read_manifest(game_dir: Path) -> dict:
     """Read the manifest of a game directory.
 
     Reads the GogStash manifest when the folder has no Shrewnut one yet.
+    Never raises for a bad manifest. One that can't be opened, isn't valid
+    JSON or doesn't hold a JSON object is logged and reported like a
+    missing one, so the game counts as not downloaded.
 
     Args:
         game_dir (Path): The game's download directory.
 
     Returns:
         dict: The manifest entries, or a dict with a single ``'error'`` key
-        if the manifest file does not exist.
+        if the manifest file is missing, unreadable or damaged.
     """
     manifest_file = Path(game_dir) / MANIFEST_FILE
     if not manifest_file.exists():
@@ -56,7 +59,17 @@ def read_manifest(game_dir: Path) -> dict:
         with open(manifest_file, 'r') as rp:
             manifest = json.load(rp)
     except FileNotFoundError:
-        return {'error': f'Missing: {str(manifest_file)}'}
+        return {'error': f"Missing: {str(manifest_file)}"}
+    except (ValueError, OSError) as e:
+        if isinstance(e, ValueError):
+            log.warning(f"malformed manifest {str(manifest_file)}: {str(e)}")
+            return {'error': f"Malformed: {str(manifest_file)}"}
+        else:
+            log.warning(f"failed to read manifest: {str(e)}")
+            return {'error': f"Read failure: {str(manifest_file)}"}
+    if not isinstance(manifest, dict):
+        log.warning(f"invalid json format for {str(manifest_file)}")
+        return {'error': f"Invalid json: {str(manifest_file)}"}
     return manifest
 
 def add_file(

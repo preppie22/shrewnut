@@ -638,3 +638,71 @@ def test_check_exist_by_downlink_finds_a_file_recorded_by_gogstash(tmp_path):
     _make_it_legacy(tmp_path)
 
     assert manifest.check_exist_by_downlink(tmp_path, DL, DB_SIZE, "gog-2")["version"] == "gog-2"
+
+
+# --- #35: damaged or unreadable manifests ---
+
+@pytest.mark.parametrize("contents", [
+    b"",
+    b'{"setup.exe": {"size": 5, "downl',
+    b"\x89PNG\r\n\x1a\n\x00\x00\xff\xfe",
+    b"[]",
+    b"42",
+], ids=["empty", "cut-off", "binary-junk", "a-list", "a-number"])
+def test_a_damaged_manifest_reads_as_an_error_instead_of_blowing_up(tmp_path, caplog, contents):
+    # One bad manifest used to take the whole library list down with it.
+    # Now it takes down exactly one Fetched tick, which is a fair trade.
+    (tmp_path / manifest.MANIFEST_FILE).write_bytes(contents)
+
+    with caplog.at_level("WARNING", logger="shrewnut.manifest"):
+        result = manifest.read_manifest(tmp_path)
+
+    assert list(result) == ["error"]
+    [warning] = caplog.records  # someone has to explain the missing tick later
+    assert str(tmp_path / manifest.MANIFEST_FILE) in warning.getMessage()  # and say which of 400 games it was
+
+
+def test_an_unreadable_manifest_reads_as_an_error_too(tmp_path, monkeypatch, caplog):
+    # NAS permissions, the gift that keeps on giving.
+    (tmp_path / manifest.MANIFEST_FILE).write_text("{}")
+
+    def locked(*args, **kwargs):
+        raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), str(tmp_path / manifest.MANIFEST_FILE))
+    monkeypatch.setattr(manifest, "open", locked, raising=False)
+
+    with caplog.at_level("WARNING", logger="shrewnut.manifest"):
+        result = manifest.read_manifest(tmp_path)
+
+    assert list(result) == ["error"]
+    [warning] = caplog.records
+    assert str(tmp_path / manifest.MANIFEST_FILE) in warning.getMessage()
+
+
+def test_a_missing_manifest_stays_quiet(tmp_path, caplog):
+    # Every game you haven't downloaded yet. Logging that would be a novel.
+    with caplog.at_level("WARNING", logger="shrewnut.manifest"):
+        result = manifest.read_manifest(tmp_path)
+
+    assert list(result) == ["error"]
+    assert caplog.records == []
+
+
+def test_the_damaged_manifest_checks_answer_nothing_found(tmp_path):
+    (tmp_path / manifest.MANIFEST_FILE).write_text('{"setup.exe": ')
+    game_file = tmp_path / "setup.exe"
+    game_file.write_bytes(b"hello")
+
+    assert manifest.stat_file(tmp_path, game_file) == {}
+    assert manifest.check_exist(tmp_path, DL, game_file, 5) == (None, {})
+    assert manifest.check_exist(tmp_path, DL, tmp_path / "renamed.exe", 5) == (None, {})
+    assert manifest.check_exist_by_downlink(tmp_path, DL, DB_SIZE, "gog-2") == {}
+
+
+def test_add_file_over_a_damaged_manifest_starts_a_fresh_one(tmp_path):
+    # The old entries were unusable anyway. The download that just finished
+    # still deserves to be written down.
+    (tmp_path / manifest.MANIFEST_FILE).write_text('{"old.exe": {"size": 5, "downl')
+
+    _record(tmp_path, "setup.exe")
+
+    assert _keys(tmp_path) == ["setup.exe"]

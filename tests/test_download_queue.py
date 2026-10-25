@@ -3844,3 +3844,15 @@ def test_the_download_history_never_gets_the_signed_checksum_link_either(mock_re
     [line] = _log_lines()
     assert "403" in line
     assert "SIGNED-SECRET" not in line
+
+
+def test_a_damaged_manifest_means_download_it_again_not_crash(caplog):
+    # #35: the Download button used to die here. Getting the files again is
+    # the only honest answer when the records of having them are mush.
+    game_dir = Path(settings.read_setting("download_path")) / "fake-game"
+    game_dir.mkdir(parents=True, exist_ok=True)
+    (game_dir / manifest.MANIFEST_FILE).write_text("[not, json")
+
+    result = download_queue.generate_download_list((111,))
+
+    assert by_file(result, "file1") is not None

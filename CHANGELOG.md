@@ -16,6 +16,11 @@ suffix until the first stable release), not SemVer.
 - The hidden file that tracks each game's downloads is now `.shrewnut.manifest`. Games downloaded by GogStash are still recognized and aren't downloaded again. Their `.gogstash.manifest` is replaced the next time a file in that game's folder is downloaded
 - Running from source: the package and the command are now both `shrewnut`. Run `pip uninstall gogstash` before installing again
 
+### Fixed
+- A damaged settings file no longer stops Shrewnut from starting. Shrewnut opens with the default settings and shows a warning, so you can check your download folder before downloading anything. The damaged file is kept as `settings_broken.json` next to it ([#35](https://github.com/preppie22/shrewnut/issues/35))
+- A damaged download record in one game's folder no longer leaves the whole library list empty. That game shows as not fetched and its files are downloaded again, while every other game is unaffected ([#35](https://github.com/preppie22/shrewnut/issues/35))
+- Saving settings or changing the theme when the settings file can't be written now shows a warning. The Settings window stays open with your changes instead of closing as if they were saved, and the theme menu keeps showing the theme that's actually in use. A crash or full disk during a save also no longer leaves a cut-off settings file behind
+
 ## [2026.10.12.1-beta] - 2026-10-12
 
 ### Fixed

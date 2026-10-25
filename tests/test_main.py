@@ -1818,3 +1818,19 @@ def test_a_theme_that_saves_fine_raises_no_alarm(monkeypatch):
         _theme_action(window, "Dark").trigger()
 
     message_box.assert_not_called()
+
+
+def test_one_damaged_manifest_doesnt_empty_the_library_list(tmp_path):
+    # #35: the first bad manifest killed _check_fetched mid-loop, so the
+    # list came up empty and every game looked like it had left the building.
+    update_setting("download_path", str(tmp_path))
+    _stock_the_library([FAKE_GAME, FAKE_GAME_2])
+    _record_installer(tmp_path, FAKE_GAME)
+    _record_installer(tmp_path, FAKE_GAME_2)
+    (tmp_path / FAKE_GAME["slug"] / manifest.MANIFEST_FILE).write_text('{"installers/fake-game-setup": {"si')
+    window = MainWindow()
+
+    window._on_games_loaded([FAKE_GAME, FAKE_GAME_2])
+
+    assert _row_count(window) == 2
+    assert _fetched_by_title(window) == {"Fake Game": False, "Second Fake Game": True}
