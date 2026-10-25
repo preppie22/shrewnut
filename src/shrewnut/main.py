@@ -761,13 +761,31 @@ class MainWindow(QMainWindow):
         """Save and apply the theme picked from the toolbar menu.
 
         The theme is saved first, since ``SettingsDialog.set_color_theme``
-        reads it back from the settings file.
+        reads it back from the settings file. If the save fails, the theme
+        stays as it was, the menu ticks the saved theme again and a warning
+        says so.
 
         Args:
             action (QAction): The checked menu entry. Its text is the theme
                 name stored in the settings.
         """
-        update_setting('theme', action.text())
+        saved = update_setting('theme', action.text())
+        if not saved:
+            current_theme = read_setting('theme')
+            for theme_setting in self.theme_toggle_group.actions():
+                if current_theme == theme_setting.text():
+                    theme_setting.setChecked(True)
+                    break
+            log.warning(f"theme wasn't changed and settings were not saved")
+            QMessageBox(
+                QMessageBox.Icon.Warning,
+                "Theme Error",
+                "Your theme could not be changed",
+                QMessageBox.StandardButton.Ok,
+                informativeText = "Shrewnut could not update your theme settings on disk.",
+                detailedText = f"Log: {str(log_file_path(LogFile.APP_LOG))}",
+                parent=self
+            ).exec()
         SettingsDialog.set_color_theme()
 
     def _check_fetched(self, product_listing: list[dict]) -> dict:

@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
@@ -381,3 +382,39 @@ def test_settings_that_were_refused_arent_logged_as_saved(mock_warning, caplog):
         click(dialog, QDialogButtonBox.StandardButton.Save)
 
     assert [r for r in caplog.records if r.name == "shrewnut.settings_dialog"] == []
+
+
+def _refuse_to_replace(*args, **kwargs):
+    raise PermissionError(13, "Permission denied")
+
+
+def test_a_save_that_fails_keeps_the_dialog_open_with_the_edits(monkeypatch, caplog):
+    # Close it anyway and the user retypes their path and twelve languages
+    # after clearing some disk space. They will not thank us.
+    settings.update_settings(SAVED_SETTINGS)
+    dialog = SettingsDialog()
+    dialog.download_edit_path.setText("/new/path")
+    monkeypatch.setattr(Path, "replace", _refuse_to_replace)
+    message_box = MagicMock()
+    monkeypatch.setattr("shrewnut.settings_dialog.QMessageBox", message_box)
+
+    with caplog.at_level("INFO", logger="shrewnut.settings_dialog"):
+        click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    assert dialog.result() != dialog.DialogCode.Accepted
+    assert dialog.download_edit_path.text() == "/new/path"
+    assert settings._read_settings()["download_path"] == "/saved/path"
+    message_box.return_value.exec.assert_called_once()
+    assert message_box.call_args.kwargs["parent"] is dialog
+    assert not any("settings applied" in r.getMessage() for r in caplog.records)  # the log doesn't get to lie either
+
+
+def test_a_save_that_works_shows_no_error(monkeypatch):
+    message_box = MagicMock()
+    monkeypatch.setattr("shrewnut.settings_dialog.QMessageBox", message_box)
+    dialog = SettingsDialog()
+
+    click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    message_box.assert_not_called()
+    assert dialog.result() == dialog.DialogCode.Accepted

@@ -1780,3 +1780,41 @@ def test_main_keeps_quiet_about_settings_that_are_fine(monkeypatch, tmp_path, co
 
     message_box.assert_not_called()
     assert not (tmp_path / "settings_broken.json").exists()
+
+
+def _refuse_to_replace(*args, **kwargs):
+    raise PermissionError(13, "Permission denied")
+
+
+def test_a_theme_that_cannot_be_saved_puts_the_menu_back(monkeypatch):
+    # set_color_theme reads the disk, so a failed save means no new theme.
+    # Leave Dark ticked anyway and the menu argues with the screen forever.
+    from shrewnut import settings
+    update_setting("theme", "Light")
+    window = MainWindow()
+    monkeypatch.setattr(Path, "replace", _refuse_to_replace)
+    message_box = MagicMock()
+    monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
+    applied_with = []
+
+    with patch("shrewnut.main.SettingsDialog.set_color_theme",
+               side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
+        _theme_action(window, "Dark").trigger()
+
+    assert [a.text() for a in window.theme_toggle_group.actions() if a.isChecked()] == ["Light"]
+    assert settings.read_setting("theme") == "Light"
+    assert applied_with == ["Light"]
+    message_box.return_value.exec.assert_called_once()
+    assert message_box.call_args.args[0] is message_box.Icon.Warning
+    assert message_box.call_args.kwargs["parent"] is window  # centred on the window, not wherever Wayland fancies
+
+
+def test_a_theme_that_saves_fine_raises_no_alarm(monkeypatch):
+    window = MainWindow()
+    message_box = MagicMock()
+    monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
+
+    with patch("shrewnut.main.SettingsDialog.set_color_theme"):
+        _theme_action(window, "Dark").trigger()
+
+    message_box.assert_not_called()

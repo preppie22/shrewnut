@@ -36,6 +36,7 @@ from PySide6.QtGui import (
 )
 from shrewnut import settings
 from shrewnut import library_db
+from shrewnut.paths import LogFile, log_file_path
 
 import logging
 log = logging.getLogger(__name__)
@@ -193,7 +194,9 @@ class SettingsDialog(QDialog):
 
         Save writes the form to disk and closes the dialog, unless no
         platform or no download category is ticked: then it shows one
-        warning listing both problems and saves nothing.
+        warning listing both problems and saves nothing. If writing the
+        file fails, a warning says so and the dialog stays open with the
+        edits still in the form.
         Discard Changes reloads the saved settings. Restore Defaults fills the
         form with default values without saving. Close closes the dialog
         without saving.
@@ -231,9 +234,22 @@ class SettingsDialog(QDialog):
                     f"Before saving:\n\n{error_messages}"
                 )
                 return
-            settings.update_settings(form_settings)
-            log.info(f"settings applied: {form_settings}")
-            self.accept()
+            saved = settings.update_settings(form_settings)
+            if not saved:
+                log.warning(f"settings were not saved")
+                QMessageBox(
+                    QMessageBox.Icon.Warning,
+                    "Write Error",
+                    "Error saving settings to disk",
+                    QMessageBox.StandardButton.Ok,
+                    informativeText = "Changes you've made have not been discarded.\n"
+                    "Check free disk space and that the settings folder is writable",
+                    detailedText = f"Log: {str(log_file_path(LogFile.APP_LOG))}",
+                    parent=self
+                ).exec()
+            else:
+                log.info(f"settings applied: {form_settings}")
+                self.accept()
         if role == QDialogButtonBox.ButtonRole.DestructiveRole:
             self.load_settings()
         if role == QDialogButtonBox.ButtonRole.ResetRole:
