@@ -54,7 +54,7 @@ from shrewnut.login_window import ExitCode
 from shrewnut.external_login import ExternalLoginDialog
 from shrewnut import library_db
 from shrewnut.settings_dialog import SettingsDialog
-from shrewnut.settings import read_setting, update_setting
+from shrewnut.settings import read_setting, update_setting, settings_broken, ERROR_STR
 from shrewnut.manifest import read_manifest, check_exist_by_downlink
 from shrewnut.download_window import DownloadWindow, UserRole, DownloadState
 from shrewnut.icon_utils import get_icon, get_logo, status_indicator
@@ -842,9 +842,12 @@ def main():
     directory, which rolls over at 2 MB and keeps three old files. The
     excepthook is installed once logging is set up, then the first entry
     records the Shrewnut, OS, Python and Qt versions and whether this is
-    the frozen build.
+    the frozen build. The settings file is checked before the main window
+    is created, and a warning box is shown if it was damaged and moved
+    aside, or couldn't be opened or created.
     """
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
     try:
         config_moved = migrate_config()
     except OSError as e:
@@ -866,7 +869,24 @@ def main():
         f"Python {platform.python_version()}, "
         f"Qt {qVersion()}, "
         f"frozen={getattr(sys, "frozen", False)}")
-    app.setStyle('Fusion')
+    settings_check = settings_broken()
+    if settings_check:
+        if settings_check == ERROR_STR:
+            main_text = "Could not open or create a settings file"
+            info_text = "Shrewnut will start with default settings. Changes made to settings during this run may not be saved."
+            details = ""
+        else:
+            main_text = "Settings file on disk was damaged"
+            info_text = "Shrewnut will start with default settings. All application settings have been reset to default. Please check your settings before downloading anything."
+            details = f"Damaged file saved as: {settings_check}\n"
+        QMessageBox(
+            QMessageBox.Icon.Warning,
+            "Settings Error",
+            main_text,
+            QMessageBox.StandardButton.Ok,
+            informativeText = info_text,
+            detailedText = details + f"Log: {str(log_file_path(LogFile.APP_LOG))}"
+        ).exec()
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

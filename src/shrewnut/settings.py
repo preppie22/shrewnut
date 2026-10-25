@@ -147,8 +147,8 @@ def _read_settings() -> dict:
 def settings_broken() -> str:
     """Check that the settings file can be read, moving a damaged one aside.
 
-    Meant to run once at startup, before anything reads a setting, so the
-    user can be told. A file that isn't valid JSON, or that doesn't hold a
+    ``main`` calls it once at startup, before the main window reads or
+    saves any setting, so the user can be told. A file that isn't valid JSON, or that doesn't hold a
     JSON object, is renamed to ``settings_broken.json`` in the same folder,
     replacing any earlier one. The next read then starts from the
     defaults, and the old values can still be copied out by hand. Merging

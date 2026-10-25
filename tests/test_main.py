@@ -1724,3 +1724,59 @@ def test_main_stops_at_a_failed_move_before_anything_touches_the_new_folder(monk
     setup_logging.assert_not_called()
     window.assert_not_called()
     assert not (tmp_path / "logs").exists()
+
+
+# --- #35: main() and a damaged settings.json ---
+
+def _run_main_with_settings(monkeypatch, tmp_path, contents):
+    """Run main() over a settings.json holding ``contents`` (None for no file,
+    a dict for a folder squatting on the name). Returns the faked QMessageBox
+    and whether the window already existed when the box went up."""
+    if isinstance(contents, dict):
+        (tmp_path / "settings.json").mkdir()
+    elif contents is not None:
+        (tmp_path / "settings.json").write_text(contents)
+    message_box = MagicMock()
+    window_existed = []
+    message_box.return_value.exec.side_effect = lambda: window_existed.append(shrewnut_main.MainWindow.called)
+    monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
+    run = _MainRun(monkeypatch)
+    run.close()
+    return message_box, window_existed
+
+
+def test_main_warns_about_a_damaged_settings_file_and_says_where_it_went(monkeypatch, tmp_path):
+    # Regression bait: tell nobody, and the first sign is 100 GB of Witcher
+    # landing in ~/Downloads instead of the NAS.
+    message_box, window_existed = _run_main_with_settings(
+        monkeypatch, tmp_path, '{"download_path": "/mnt/nas/games", "theme": "Da')
+
+    backup = tmp_path / "settings_broken.json"
+    assert backup.read_text() == '{"download_path": "/mnt/nas/games", "theme": "Da'
+    message_box.return_value.exec.assert_called_once()
+    assert message_box.call_args.args[0] is message_box.Icon.Warning  # not Critical: startup carries on
+    assert str(backup) in message_box.call_args.kwargs["detailedText"]
+    assert window_existed == [False]  # moved aside before the window could save over it
+    shrewnut_main.MainWindow.assert_called_once()  # a warning, not a wall
+
+
+def test_main_warns_when_the_settings_file_cannot_be_opened_at_all(monkeypatch, tmp_path):
+    # A folder named settings.json: open() says no on every OS, just in
+    # different words.
+    message_box, window_existed = _run_main_with_settings(monkeypatch, tmp_path, {})
+
+    message_box.return_value.exec.assert_called_once()
+    assert message_box.call_args.args[0] is message_box.Icon.Warning  # not Critical: startup carries on
+    assert "settings_broken.json" not in message_box.call_args.kwargs["detailedText"]  # nothing was moved, so don't claim it was
+    assert not (tmp_path / "settings_broken.json").exists()
+    assert window_existed == [False]
+    shrewnut_main.MainWindow.assert_called_once()
+
+
+@pytest.mark.parametrize("contents", [None, '{"download_path": "/mnt/nas/games"}'], ids=["first-run", "healthy"])
+def test_main_keeps_quiet_about_settings_that_are_fine(monkeypatch, tmp_path, contents):
+    # A warning on every launch is a warning nobody reads.
+    message_box, _ = _run_main_with_settings(monkeypatch, tmp_path, contents)
+
+    message_box.assert_not_called()
+    assert not (tmp_path / "settings_broken.json").exists()
