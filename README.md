@@ -12,20 +12,48 @@ Shrewnut<br>
 <p align="center">
   <a href="https://github.com/preppie22/shrewnut/releases/latest"><img src="https://img.shields.io/github/v/release/preppie22/shrewnut?include_prereleases" alt="Latest release"/></a>
   <a href="https://github.com/preppie22/shrewnut/releases"><img src="https://img.shields.io/github/downloads/preppie22/shrewnut/total" alt="Total downloads"/></a>
-  <a href="#status"><img src="https://img.shields.io/badge/status-beta-orange" alt="Status: beta"/></a>
+  <a href="#features"><img src="https://img.shields.io/badge/status-beta-orange" alt="Status: beta"/></a>
   <a href="https://github.com/preppie22/shrewnut/commits/dev"><img src="https://img.shields.io/github/last-commit/preppie22/shrewnut/dev" alt="Last commit on dev"/></a>
   <a href="#download"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey" alt="Platforms: Linux | Windows"/></a>
   <a href="https://doc.qt.io/qtforpython-6/"><img src="https://img.shields.io/badge/built%20with-Qt%20(PySide6)-41CD52?logo=qt&logoColor=white" alt="Built with Qt (PySide6)"/></a>
 </p>
 
-A desktop GUI application for downloading local backups
-of your GOG.com game library.
+A desktop GUI application for downloading local backups of your GOG.com game library.
+
+## Screenshots
 
 <p align="center">
   <picture>
-    <img src="docs/demo.gif" alt="Shrewnut queueing and downloading games"/>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_2_downloading.png">
+    <img src="docs/screenshots/light_2_downloading.png" width="100%" alt="The download queue with three games finished, two downloading and the rest waiting, showing speed and time left">
   </picture>
 </p>
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_1_settings.png">
+        <img src="docs/screenshots/light_1_settings.png" width="240" alt="The Settings window open over the library, with the download folder, concurrency, platforms, categories and languages">
+      </picture>
+      <br>Pick where and what to download
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_3_paused.png">
+        <img src="docs/screenshots/light_3_paused.png" width="240" alt="The download queue paused, with five games finished, two paused partway and a Resume Downloads button">
+      </picture>
+      <br>Pause and pick up where you left off
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_4_about.png">
+        <img src="docs/screenshots/light_4_about.png" width="240" alt="The About Shrewnut window showing the version, project links and license">
+      </picture>
+      <br>About Shrewnut
+    </td>
+  </tr>
+</table>
 
 ## Why
 
@@ -41,13 +69,20 @@ I'd appreciate your feedback on bugs, features, or improvements in the [issues s
 - Queue multiple games and DLCs
 - Add games to the queue at any time
 - Downloads multiple games concurrently
-- Download only what you want: Installers, Bonus Content, Extras, Patches
+- Download only what you want: Installers, Bonus Content (extras), Patches
 - Support for downloading content in different languages
 - Pause downloads when your internet drops without losing progress
 - Pause downloads when disk is full to allow clearing space
 - Prevents files from being re-downloaded if they are already on disk
 - Dark mode and light mode support
-- 
+- Auto-update for Linux users using GearLever
+
+Planned:
+- Scanning existing directories for downloaded files ([#28](https://github.com/preppie22/shrewnut/issues/28))
+- Search bar lookup for large libraries ([#16](https://github.com/preppie22/shrewnut/issues/16))
+- Auto-resume when internet reconnects after a drop ([#34](https://github.com/preppie22/shrewnut/issues/34))
+- Pick individual files to download for each game ([#36](https://github.com/preppie22/shrewnut/issues/36))
+- Non-intrusive update notification ([#37](https://github.com/preppie22/shrewnut/issues/37))
 
 The app is fully functional at this point. Fair warning though: don't set the download concurrency too high. I don't know how lenient GOG is with their API being hammered. Don't say I didn't warn you if your account gets banned.
 
