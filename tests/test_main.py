@@ -1834,3 +1834,19 @@ def test_one_damaged_manifest_doesnt_empty_the_library_list(tmp_path):
 
     assert _row_count(window) == 2
     assert _fetched_by_title(window) == {"Fake Game": False, "Second Fake Game": True}
+
+
+def test_main_gives_the_app_its_acorn_before_any_box_can_pop_up(monkeypatch):
+    # The startup boxes come before MainWindow exists. With the icon set only
+    # on the window, Windows handed them its generic placeholder instead.
+    seen_by_migration = []
+    monkeypatch.setattr(shrewnut_main, "migrate_config",
+                        lambda: seen_by_migration.append(shrewnut_main.QApplication.return_value.setWindowIcon.call_args) or False)
+
+    run = _MainRun(monkeypatch)
+    run.close()
+
+    [icon_set] = seen_by_migration
+    assert icon_set is not None  # already set when migration got its turn
+    [icon] = icon_set.args
+    assert isinstance(icon, QIcon) and not icon.isNull()

@@ -147,7 +147,6 @@ class MainWindow(QMainWindow):
 
         # Main Window Setup
         self.setWindowTitle("Shrewnut")
-        self.setWindowIcon(get_logo())
         self.resize(1024, 768)
         self.download_window = DownloadWindow(self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.download_window)
@@ -866,6 +865,7 @@ def main():
     """
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
+    app.setWindowIcon(get_logo())
     try:
         config_moved = migrate_config()
     except OSError as e:

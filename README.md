@@ -31,28 +31,27 @@ of your GOG.com game library.
 
 Basically, I wanted to build a tool that can batch download installers/extras for your GOG game library. There are some CLI tools, but I didn't really like those because they were clunky for batch downloads and mostly single threaded. So, I built this application to do better than that. The program code is not AI generated (see [AI Disclosure](#ai-disclosure)). This program batch downloads content only when it hasn't already been downloaded or if the downloaded content is stale.
 
-## Status
-
-The project is in beta right now and there's some work left to get it polished. Please download and report any bugs that you encounter.
-
-What's working:
-- Login to GOG.com.
-- Fetching your game library.
-- Dynamically adding games to queue and downloading them to disk.
-- Concurrent downloads.
-- Select what categories to download.
-- Settings menu.
-- Pause/Resume downloads.
-- Clear download queue.
-
-The app is fully functional at this point. Fair warning though: don't set the download concurrency too high. I don't know how lenient GOG is with their API being hammered. Don't say I didn't warn you if your account gets banned.
-
-## Download
+## Features
 
 > [!NOTE]
 > This application is currently in **beta**. All features are tested and working but there may be bugs.
 
 I'd appreciate your feedback on bugs, features, or improvements in the [issues section](https://github.com/preppie22/shrewnut/issues).
+
+- Queue multiple games and DLCs
+- Add games to the queue at any time
+- Downloads multiple games concurrently
+- Download only what you want: Installers, Bonus Content, Extras, Patches
+- Support for downloading content in different languages
+- Pause downloads when your internet drops without losing progress
+- Pause downloads when disk is full to allow clearing space
+- Prevents files from being re-downloaded if they are already on disk
+- Dark mode and light mode support
+- 
+
+The app is fully functional at this point. Fair warning though: don't set the download concurrency too high. I don't know how lenient GOG is with their API being hammered. Don't say I didn't warn you if your account gets banned.
+
+## Download
 
 <div align="center">
 
@@ -61,8 +60,6 @@ I'd appreciate your feedback on bugs, features, or improvements in the [issues s
 | [![GitHub Release](https://img.shields.io/github/v/release/preppie22/shrewnut?style=for-the-badge&logo=github)](https://github.com/preppie22/shrewnut/releases/latest) |  [![Linux Download](https://img.shields.io/badge/AppImage-Download-green?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64.AppImage) | [![Windows Download](https://img.shields.io/badge/ZIP-Download-blue?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tISBGb250IEF3ZXNvbWUgRnJlZSA2LjcuMiBieSBAZm9udGF3ZXNvbWUgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbSBMaWNlbnNlIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20vbGljZW5zZS9mcmVlIChJY29uczogQ0MgQlkgNC4wLCBGb250czogU0lMIE9GTCAxLjEsIENvZGU6IE1JVCBMaWNlbnNlKSBDb3B5cmlnaHQgMjAyNCBGb250aWNvbnMsIEluYy4gLS0%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgOTMuN2wxODMuNi0yNS4zdjE3Ny40SDBWOTMuN3ptMCAzMjQuNmwxODMuNiAyNS4zVjI2OC40SDB2MTQ5Ljl6bTIwMy44IDI4TDQ0OCA0ODBWMjY4LjRIMjAzLjh2MTc3Ljl6bTAtMzgwLjZ2MTgwLjFINDQ4VjMyTDIwMy44IDY1Ljd6Ii8%2BPC9zdmc%2B)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64-windows.zip) | 
 
 </div>
-
-
 
 ## How to use it
 
@@ -91,33 +88,6 @@ Run the AppImage file. You can use AppImageUpdate or GearLever to manage this ap
 
 > [!TIP]
 > Games will download to a folder called Shrewnut in your default "Download" location. You can change this in the settings. People upgrading from GogStash will keep their folder settings.
-
-## To Do
-
-This list tracks the functionality expected in the program. Features and bugs will
-be tracked in the [issues section](https://github.com/preppie22/shrewnut/issues) from now on.
-
-**Beta Release:**
-<details>
-
-<summary> Features </summary>
-
-**Legend:** ✅ done & released · 🟡 done, merged but not yet released · ⬜ not started
-
-- ✅ Stop downloads once they're started
-- ✅ Pause downloads once they're started
-- ✅ Resume a paused or interrupted download instead of starting over
-- ✅ Add downloads to queue without stopping or pausing started downloads
-- ✅ Skip re-downloading files that already exist and check out
-- ✅ Record fetched files in the local cache so the library view reflects what you actually have
-- ✅ Clear the download queue
-- ✅ Auto remove completed downloads from download queue before starting
-- ✅ Ship a self-contained Linux AppImage
-- ✅ Document the codebase beyond just the tests
-- ✅ Add auto-update capability to AppImage (e.g. via GearLever/AppImageUpdate)
-- ✅ Ship a Windows build (zipped, not an installer)
-
-</details>
 
 ## Developers
 
