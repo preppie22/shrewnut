@@ -23,37 +23,19 @@ A desktop GUI application for downloading local backups of your GOG.com game lib
 ## Screenshots
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_2_downloading.png">
-    <img src="docs/screenshots/light_2_downloading.png" width="100%" alt="The download queue with three games finished, two downloading and the rest waiting, showing speed and time left">
-  </picture>
+  <a href="docs/screenshots/dark_2_downloading.png#gh-dark-mode-only"><img src="docs/screenshots/dark_2_downloading.png" width="100%" alt="The download queue with three games finished, two downloading and the rest waiting, showing speed and time left" title="Several games downloading at once"></a>
+  <a href="docs/screenshots/light_2_downloading.png#gh-light-mode-only"><img src="docs/screenshots/light_2_downloading.png" width="100%" alt="The download queue with three games finished, two downloading and the rest waiting, showing speed and time left" title="Several games downloading at once"></a>
 </p>
 
-<table align="center">
-  <tr>
-    <td align="center">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_1_settings.png">
-        <img src="docs/screenshots/light_1_settings.png" width="240" alt="The Settings window open over the library, with the download folder, concurrency, platforms, categories and languages">
-      </picture>
-      <br>Pick where and what to download
-    </td>
-    <td align="center">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_3_paused.png">
-        <img src="docs/screenshots/light_3_paused.png" width="240" alt="The download queue paused, with five games finished, two paused partway and a Resume Downloads button">
-      </picture>
-      <br>Pause and pick up where you left off
-    </td>
-    <td align="center">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark_4_about.png">
-        <img src="docs/screenshots/light_4_about.png" width="240" alt="The About Shrewnut window showing the version, project links and license">
-      </picture>
-      <br>About Shrewnut
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="docs/screenshots/dark_1_settings.png#gh-dark-mode-only"><img src="docs/screenshots/dark_1_settings.png" width="32%" alt="The Settings window open over the library, with the download folder, concurrency, platforms, categories and languages" title="Pick where and what to download"></a>
+  <a href="docs/screenshots/light_1_settings.png#gh-light-mode-only"><img src="docs/screenshots/light_1_settings.png" width="32%" alt="The Settings window open over the library, with the download folder, concurrency, platforms, categories and languages" title="Pick where and what to download"></a>
+  <a href="docs/screenshots/dark_3_paused.png#gh-dark-mode-only"><img src="docs/screenshots/dark_3_paused.png" width="32%" alt="The download queue paused, with five games finished, two paused partway and a Resume Downloads button" title="Pause and pick up where you left off"></a>
+  <a href="docs/screenshots/light_3_paused.png#gh-light-mode-only"><img src="docs/screenshots/light_3_paused.png" width="32%" alt="The download queue paused, with five games finished, two paused partway and a Resume Downloads button" title="Pause and pick up where you left off"></a>
+  <a href="docs/screenshots/dark_4_about.png#gh-dark-mode-only"><img src="docs/screenshots/dark_4_about.png" width="32%" alt="The About Shrewnut window showing the version, project links and license" title="About Shrewnut"></a>
+  <a href="docs/screenshots/light_4_about.png#gh-light-mode-only"><img src="docs/screenshots/light_4_about.png" width="32%" alt="The About Shrewnut window showing the version, project links and license" title="About Shrewnut"></a>
+  <br><sub>Settings &nbsp;·&nbsp; Paused downloads &nbsp;·&nbsp; About</sub>
+</p>
 
 ## Why
 
