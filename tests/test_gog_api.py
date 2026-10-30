@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from shrewnut import gog_api
-from shrewnut.constants import HTTP_TIMEOUT
+from shrewnut.constants import HTTP_TIMEOUT, HTTP_TIMEOUT_SHORT
 
 
 FAKE_TOKEN = {"access_token": "mytoken"}
@@ -267,3 +267,110 @@ def test_resolve_downlink_raises_auth_failure_when_not_logged_in(mock_get_valid_
         gog_api.resolve_downlink("https://api.gog.com/products/111/downlink/installer/file1")
 
     mock_get.assert_not_called()
+
+
+# --- get_store_url ---
+
+V2 = "https://api.gog.com/v2/games"
+
+
+def v2_game(product_id, slug, for_sale, included_in=()):
+    # Just the parts of a v2/games answer that get_store_url reads. The
+    # real thing also carries screenshots, copyrights and a small novel.
+    return {
+        "_links": {
+            "store": {"href": f"https://www.gog.com/en/game/{slug}"},
+            "isIncludedInGames": [{"href": f"{V2}/{pid}?locale=en-US"} for pid in included_in],
+        },
+        "_embedded": {"product": {"id": product_id, "isAvailableForSale": for_sale}},
+    }
+
+
+def answer_with(games):
+    # requests.get stand-in that answers from a dict of URL -> JSON, so each
+    # test reads like the GOG catalog it's pretending to be.
+    def fake_get(url, **kwargs):
+        return make_response(games[url])
+    return MagicMock(side_effect=fake_get)
+
+
+def test_get_store_url_uses_the_products_own_page_when_its_on_sale():
+    games = {f"{V2}/1752654506": v2_game(1752654506, "bioshock_infinite", for_sale=True)}
+
+    with patch("shrewnut.gog_api.requests.get", answer_with(games)) as mock_get:
+        assert gog_api.get_store_url(1752654506) == "https://www.gog.com/en/game/bioshock_infinite"
+
+    assert mock_get.call_count == 1
+    assert mock_get.call_args.kwargs["timeout"] == HTTP_TIMEOUT_SHORT
+
+
+def test_get_store_url_follows_packs_to_the_first_one_on_sale():
+    # BioShock Remastered, the Amazon Prime copy: its own page and the Prime
+    # pack's are both off the shelf, so the shop window is two doors down.
+    games = {
+        f"{V2}/1439656515": v2_game(1439656515, "bioshock_remastered_game", for_sale=False, included_in=[1157510446, 1269268081]),
+        f"{V2}/1157510446?locale=en-US": v2_game(1157510446, "bioshock_remastered_1157510446", for_sale=False),
+        f"{V2}/1269268081?locale=en-US": v2_game(1269268081, "bioshock_remastered", for_sale=True),
+    }
+
+    with patch("shrewnut.gog_api.requests.get", answer_with(games)):
+        assert gog_api.get_store_url(1439656515) == "https://www.gog.com/en/game/bioshock_remastered"
+
+
+def test_get_store_url_stops_at_the_first_pack_on_sale():
+    games = {
+        f"{V2}/1": v2_game(1, "old", for_sale=False, included_in=[2, 3]),
+        f"{V2}/2?locale=en-US": v2_game(2, "first_pack", for_sale=True),
+        f"{V2}/3?locale=en-US": v2_game(3, "second_pack", for_sale=True),
+    }
+
+    with patch("shrewnut.gog_api.requests.get", answer_with(games)) as mock_get:
+        assert gog_api.get_store_url(1) == "https://www.gog.com/en/game/first_pack"
+
+    assert mock_get.call_count == 2  # the second pack never got a knock on the door
+
+
+@pytest.mark.parametrize("included_in", [[], [2]])
+def test_get_store_url_returns_none_when_nothing_is_on_sale(included_in):
+    # Delisted, and every pack it came in is delisted too. No page beats a
+    # page that dumps you in the catalog wondering what you clicked.
+    games = {
+        f"{V2}/1": v2_game(1, "gone", for_sale=False, included_in=included_in),
+        f"{V2}/2?locale=en-US": v2_game(2, "also_gone", for_sale=False),
+    }
+
+    with patch("shrewnut.gog_api.requests.get", answer_with(games)):
+        assert gog_api.get_store_url(1) is None
+
+
+@pytest.mark.parametrize("error", [requests.ConnectionError(), requests.Timeout()])
+def test_get_store_url_returns_none_when_gog_cant_be_reached(error):
+    with patch("shrewnut.gog_api.requests.get", side_effect=error):
+        assert gog_api.get_store_url(1) is None
+
+
+def test_get_store_url_returns_none_when_a_pack_cant_be_reached():
+    games = {f"{V2}/1": v2_game(1, "old", for_sale=False, included_in=[2])}
+
+    def fake_get(url, **kwargs):
+        if url in games:
+            return make_response(games[url])
+        raise requests.ConnectionError()
+
+    with patch("shrewnut.gog_api.requests.get", side_effect=fake_get):
+        assert gog_api.get_store_url(1) is None
+
+
+def test_get_store_url_returns_none_for_an_html_error_page():
+    # A wrong URL gets GOG's 404 page, in HTML. .json() chokes on it, and
+    # that has to come out as "no page", not a dead lookup thread.
+    response = make_response(None, status_code=404)
+    response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<!DOCTYPE html>", 0)
+
+    with patch("shrewnut.gog_api.requests.get", return_value=response):
+        assert gog_api.get_store_url(1) is None
+
+
+def test_get_store_url_returns_none_when_gogs_answer_is_missing_fields():
+    with patch("shrewnut.gog_api.requests.get", return_value=make_response({"error": "not_found"})):
+        assert gog_api.get_store_url(1) is None

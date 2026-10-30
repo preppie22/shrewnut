@@ -48,10 +48,13 @@ from PySide6.QtCore import (
     QProcess,
     QProcessEnvironment,
     QTimer,
-    qVersion
+    QThread,
+    qVersion,
+    Signal
 )
 
 from shrewnut import gog_auth
+from shrewnut.gog_api import get_store_url
 from shrewnut.login_window import ExitCode
 from shrewnut.external_login import ExternalLoginDialog
 from shrewnut import library_db
@@ -124,6 +127,37 @@ class GameListItem(QTreeWidgetItem):
             case Column.FETCHED:
                 return self.data(Column.FETCHED, Qt.ItemDataRole.UserRole) < other.data(Column.FETCHED, Qt.ItemDataRole.UserRole)
 
+class GetProductURL(QThread):
+    """Looks up a product's GOG store page off the GUI thread.
+
+    One instance is reused for every lookup: set ``product_id``, then call
+    ``start()``. The lookup makes up to a few web requests, see
+    ``gog_api.get_store_url``.
+
+    Attributes:
+        fetched_url (Signal(str)): Emitted once per run with the store page
+            URL, or an empty string if no page was found or no product ID
+            was set.
+        product_id (int | None): The product to look up on the next run.
+    """
+    fetched_url = Signal(str)
+
+    def __init__(self, parent = None):
+        """Create the thread with no product set.
+
+        Args:
+            parent (QObject, optional): Owner of the thread.
+        """
+        super().__init__(parent)
+        self.product_id = None
+
+    def run(self):
+        """Look up ``product_id`` and emit the result."""
+        if self.product_id is None:
+            self.fetched_url.emit("")
+            return
+        self.fetched_url.emit(get_store_url(self.product_id))
+
 class MainWindow(QMainWindow):
     """Main application window.
 
@@ -141,6 +175,8 @@ class MainWindow(QMainWindow):
         self.fetch_thread = None
 
         self.error_message = QErrorMessage()
+        self.store_lookup = GetProductURL(self)
+        self.store_lookup.fetched_url.connect(self._on_store_url)
 
         # Login Helper Process
         self.login_process = QProcess(self)
@@ -377,6 +413,8 @@ class MainWindow(QMainWindow):
         """
         if self.download_window.connection_check.isRunning():
             self.download_window.connection_check.wait()
+        if self.store_lookup.isRunning():
+            self.store_lookup.wait()
         if self.quit_pending and self._threads_busy():
             event.ignore()
             return
@@ -482,6 +520,37 @@ class MainWindow(QMainWindow):
         self._on_games_loaded(library_db.get_product_listing())
         settings_dialog.deleteLater()
 
+    def open_store_page(self, product_id: int):
+        """Start looking up a product's store page, to open it when found.
+
+        ``_on_store_url`` opens the page once the lookup finishes. A click
+        while a lookup is still running is ignored.
+
+        Args:
+            product_id (int): The GOG product ID.
+        """
+        if self.store_lookup.isRunning():
+            return
+        self.store_lookup.product_id = product_id
+        self.store_lookup.start()
+
+    def open_url(self, url: str):
+        """Open a web page in the default browser.
+
+        If the system has nothing that can open web pages, an error says so.
+
+        Args:
+            url (str): The page to open.
+        """
+        check = QDesktopServices.openUrl(QUrl(url))
+        if not check:
+            log.warning(f"no browser/handler for {url}")
+            QMessageBox.critical(
+                self,
+                "No URL Handler",
+                "Your system does not have a way to open web URLs."
+            )
+
     def open_folder(self, folder_path: Path):
         """Open a folder in the system file manager.
 
@@ -510,7 +579,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "No Folder Handler",
-                "Your system does not have a way to open folders!"
+                "Your system does not have a way to open folders."
             )
 
     def open_about_page(self):
@@ -655,6 +724,7 @@ class MainWindow(QMainWindow):
         "Open folder" opens the game's download folder, which for a DLC is
         its base game's folder. It's greyed out until that folder exists.
         "Add to Queue" queues the selection, the same as Queue Selection.
+        "View on GOG" opens the game's store page, see ``open_store_page``.
         Right-clicking empty space shows no menu.
 
         Args:
@@ -664,7 +734,8 @@ class MainWindow(QMainWindow):
         row_item = self.games_list.itemAt(pos)
         if not row_item:
             return
-        item_path : Path = Path(read_setting('download_path')) / library_db.get_product_listing((row_item.data(Column.TITLE, UserRole.PRODUCT_ID_ROLE),))[0]['slug']
+        product_listing = library_db.get_product_listing((row_item.data(Column.TITLE, UserRole.PRODUCT_ID_ROLE),))[0]
+        item_path : Path = Path(read_setting('download_path')) / product_listing['slug']
 
         open_folder = QAction("Open folder")
         open_folder.setEnabled(item_path.exists())
@@ -673,9 +744,13 @@ class MainWindow(QMainWindow):
         add_to_queue = QAction("Add to Queue")
         add_to_queue.triggered.connect(lambda: self.onclick_queue_download())
 
+        view_on_gog = QAction("View on GOG")
+        view_on_gog.triggered.connect(lambda: self.open_store_page(product_listing['product_id']))
+
         menu = QMenu(self)
         menu.addAction(open_folder)
         menu.addAction(add_to_queue)
+        menu.addAction(view_on_gog)
         menu.exec(self.games_list.viewport().mapToGlobal(pos))
         menu.deleteLater()
 
@@ -906,6 +981,22 @@ class MainWindow(QMainWindow):
             else:
                 fetched[game['product_id']] = True
         return fetched
+
+    def _on_store_url(self, url: str):
+        """Open the store page a lookup found, or say that none was found.
+
+        Args:
+            url (str): The store page URL, or an empty string if the lookup
+                found none.
+        """
+        if url:
+            self.open_url(url)
+        else:
+            QMessageBox.information(
+                self,
+                "Store Page Not Found",
+                "Could not find this game's store page on GOG"
+            )
 
 def _log_unhandled_exception(exc_type: type[BaseException], exc_value: BaseException, exc_tb: TracebackType | None) -> None:
     """Write an uncaught exception and its traceback to the app log.

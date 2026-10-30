@@ -3,6 +3,7 @@ import importlib.metadata
 import logging.handlers
 import platform
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -2035,7 +2036,7 @@ def test_right_click_open_folder_opens_that_games_folder(mock_open_url, tmp_path
 
     offered = _right_click(window, _row(window, 1), pick="Open folder")
 
-    assert offered == [{"Open folder": True, "Add to Queue": True}]
+    assert offered == [{"Open folder": True, "Add to Queue": True, "View on GOG": True}]
     [url] = mock_open_url.call_args.args
     assert url.toLocalFile() == str(tmp_path / "second-fake-game")
 
@@ -2066,7 +2067,7 @@ def test_right_click_open_folder_is_greyed_out_until_the_game_has_a_folder(mock_
 
     offered = _right_click(window, _row(window, 0))
 
-    assert offered == [{"Open folder": False, "Add to Queue": True}]
+    assert offered == [{"Open folder": False, "Add to Queue": True, "View on GOG": True}]
     assert not (tmp_path / "fake-game").exists()
     mock_open_url.assert_not_called()
 
@@ -2093,3 +2094,104 @@ def test_right_click_on_empty_space_shows_no_menu():
     window._on_games_loaded([FAKE_GAME])
 
     assert _right_click(window, None) == []
+
+
+# --- View on GOG ---
+
+def _finish_lookup(window):
+    # The lookup thread emits from its own thread, so the answer arrives as
+    # a queued call. Wait for the thread, then let the event loop deliver.
+    window.store_lookup.wait()
+    QApplication.processEvents()
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+@patch("shrewnut.main.get_store_url", return_value="https://www.gog.com/en/game/fake_game")
+def test_view_on_gog_opens_the_page_the_lookup_found(mock_lookup, mock_open_url):
+    _stock_the_library([FAKE_GAME])
+    window = MainWindow()
+    window._on_games_loaded(library_db.get_product_listing())
+
+    _right_click(window, _row(window, 0), pick="View on GOG")
+    _finish_lookup(window)
+
+    mock_lookup.assert_called_once_with(FAKE_GAME["product_id"])
+    [url] = mock_open_url.call_args.args
+    assert url.toString() == "https://www.gog.com/en/game/fake_game"
+
+
+@patch("shrewnut.main.QMessageBox.information")
+@patch("shrewnut.main.QDesktopServices.openUrl")
+@patch("shrewnut.main.get_store_url", return_value=None)
+def test_view_on_gog_says_so_when_theres_no_page_to_open(mock_lookup, mock_open_url, mock_info):
+    # Delisted, giveaway-only, or GOG didn't pick up. Either way, no browser
+    # tab opening on the catalog like a shrug in web form.
+    window = MainWindow()
+
+    window.open_store_page(1)
+    _finish_lookup(window)
+
+    mock_open_url.assert_not_called()
+    mock_info.assert_called_once()
+    assert mock_info.call_args.args[1] == "Store Page Not Found"
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+def test_view_on_gog_ignores_a_second_click_while_still_looking(mock_open_url):
+    # Impatient double clicks shouldn't open two tabs, or restart a thread
+    # that's still mid-sentence.
+    calls = []
+    release = threading.Event()
+
+    def slow_lookup(product_id):
+        calls.append(product_id)
+        release.wait(5)
+        return "https://www.gog.com/en/game/fake_game"
+
+    window = MainWindow()
+    with patch("shrewnut.main.get_store_url", side_effect=slow_lookup):
+        window.open_store_page(1)
+        window.open_store_page(2)
+        release.set()
+        _finish_lookup(window)
+
+    assert calls == [1]
+    mock_open_url.assert_called_once()
+
+
+@patch("shrewnut.main.QMessageBox.critical")
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=False)
+def test_open_url_speaks_up_when_nothing_can_open_web_pages(mock_open_url, mock_critical):
+    window = MainWindow()
+
+    window.open_url("https://www.gog.com/en/game/fake_game")
+
+    _parent, title, _text = mock_critical.call_args.args
+    assert title == "No URL Handler"
+
+
+def test_lookup_without_a_product_answers_empty_instead_of_asking_gog():
+    lookup = shrewnut_main.GetProductURL()
+    answers = []
+    lookup.fetched_url.connect(answers.append)
+
+    with patch("shrewnut.main.get_store_url") as mock_lookup:
+        lookup.run()  # straight call, same thread, so the answer is immediate
+
+    assert answers == [""]
+    mock_lookup.assert_not_called()
+
+
+def test_quitting_waits_for_a_running_store_lookup():
+    # Same deal as connection_check: Qt aborts the whole app if a QThread
+    # is destroyed while it's still running.
+    release = threading.Event()
+    window = MainWindow()
+    with patch("shrewnut.main.get_store_url", side_effect=lambda _: release.wait(5) and ""):
+        window.open_store_page(1)
+        assert window.store_lookup.isRunning()
+        threading.Timer(0.05, release.set).start()  # a Qt timer would never fire while close() blocks in wait()
+
+        window.close()
+
+    assert not window.store_lookup.isRunning()

@@ -5,16 +5,76 @@ from typing import Callable
 
 from shrewnut import gog_auth
 from shrewnut.gog_auth import AuthenticationFailure
-from shrewnut.constants import HTTP_TIMEOUT
+from shrewnut.constants import HTTP_TIMEOUT, HTTP_TIMEOUT_SHORT
 
 import logging
 log = logging.getLogger(__name__)
 
+QUERY_URL = "https://api.gog.com/v2"
 PRODUCT_URL = "https://api.gog.com/products"
 USER_GAMES = "https://embed.gog.com/user/data/games"
 
 class FetchInterrupted(Exception):
     """Raised by ``fetch_downloadables`` when its caller asks it to stop."""
+
+def _fetch_game(url: str) -> dict | None:
+    """Fetch one product from GOG's v2 games API.
+
+    No login is needed. A failed request or an answer that isn't JSON,
+    such as an HTML error page, returns None instead of raising.
+
+    Args:
+        url (str): A ``v2/games`` URL, either built from a product ID or
+            taken from another product's links.
+
+    Returns:
+        dict | None: The decoded JSON, or None if the request failed.
+    """
+    try:
+        response = requests.get(
+            url,
+            allow_redirects=False,
+            timeout=HTTP_TIMEOUT_SHORT
+        )
+        return response.json()
+    except requests.RequestException:
+        return None
+
+def get_store_url(product_id: int) -> str | None:
+    """Find a working GOG store page for a product.
+
+    The store link that comes with a product only works while GOG sells
+    that product on its own. Games from giveaways or packs, and games GOG
+    replaced with a new edition, have links that send the browser to the
+    catalog instead. For those, the packs and editions that include the
+    product are checked in turn, and the first one on sale gives the page.
+    Makes one request, plus one per pack or edition checked.
+
+    Args:
+        product_id (int): The GOG product ID.
+
+    Returns:
+        str | None: The store page URL, or None if nothing that includes
+        the product is on sale, GOG's answer is missing the expected
+        fields, or a request failed.
+    """
+    response_dict = _fetch_game(f"{QUERY_URL}/games/{product_id}")
+    if response_dict is None:
+        return None
+    try:
+        if response_dict['_embedded']['product']['isAvailableForSale']:
+            return response_dict['_links']['store']['href']
+        else:
+            for entry in response_dict['_links'].get("isIncludedInGames", []):
+                internal_dict = _fetch_game(entry['href'])
+                if internal_dict is None:
+                    return None
+                if internal_dict['_embedded']['product']['isAvailableForSale']:
+                    return internal_dict['_links']['store']['href']
+    except KeyError:
+        log.info(f'could not find store page for {product_id}')
+        return None
+
 
 def fetch_owned_ids() -> set:
     """Fetch the IDs of every product the user owns on GOG.
