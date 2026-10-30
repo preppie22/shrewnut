@@ -54,6 +54,7 @@ GOG_LANGUAGES = {
 DEFAULT_SETTINGS = {
     'download_path': str(paths.default_download_path()),
     'download_concurrency': 2,
+    'reconnect_minutes': 2,
     'platform_filter': ['Linux','Windows','MacOS'],
     'verify_downloads': True,
     'installers': True,

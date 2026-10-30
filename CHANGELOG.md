@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage
 suffix until the first stable release), not SemVer.
 
+## [Unreleased]
+
+### Removed
+- The "Prevent Redownload" checkbox in Settings. It never had any effect: files that were already downloaded are always skipped
+
 ## [2026.10.25-beta] - 2026-10-25
 
 ### Changed

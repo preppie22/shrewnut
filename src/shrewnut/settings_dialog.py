@@ -76,6 +76,15 @@ class SettingsDialog(QDialog):
         self.download_concurrency_edit.valueChanged.connect(self.on_concurrency_changed)
         self.window_layout.addRow("Download Concurrency", self.download_concurrency_edit)
 
+        # Retry Connection
+        self.reconnect_minutes_edit = QSpinBox()
+        self.reconnect_minutes_edit.setMinimum(0)
+        self.reconnect_minutes_edit.setMaximum(60)
+        self.reconnect_minutes_edit.setToolTip("How long to keep trying to reconnect before showing a connection lost message.")
+        self.reconnect_minutes_edit.setSuffix(" min")
+        self.reconnect_minutes_edit.setSpecialValueText("Off")
+        self.window_layout.addRow("Auto Reconnect", self.reconnect_minutes_edit)
+
         # Platform Filter
         self.platform_filter_layout = QHBoxLayout()
         self.platform_filter_check = {
@@ -88,9 +97,9 @@ class SettingsDialog(QDialog):
         self.window_layout.addRow("Platforms", self.platform_filter_layout)
 
         # Verify Downloads
-        self.verify_downloads_check = QCheckBox()
-        self.verify_downloads_check.setToolTip("Do not redownload files that exist on disk")
-        self.window_layout.addRow("Prevent Redownload", self.verify_downloads_check)
+        # self.verify_downloads_check = QCheckBox()
+        # self.verify_downloads_check.setToolTip("Do not redownload files that exist on disk")
+        # self.window_layout.addRow("Prevent Redownload", self.verify_downloads_check)
 
         # Download Filters
         self.download_categories_layout = QHBoxLayout()
@@ -169,13 +178,14 @@ class SettingsDialog(QDialog):
             form_settings = settings.read_settings()
         self.download_edit_path.setText(form_settings.get('download_path'))
         self.download_concurrency_edit.setValue(form_settings.get('download_concurrency'))
+        self.reconnect_minutes_edit.setValue(form_settings.get('reconnect_minutes'))
         platform_filters = form_settings.get('platform_filter') or settings.DEFAULT_SETTINGS['platform_filter']
         for checkbox in self.platform_filter_check.items():
             if checkbox[0] in platform_filters:
                 checkbox[1].setChecked(True)
             else:
                 checkbox[1].setChecked(False)
-        self.verify_downloads_check.setChecked(form_settings.get('verify_downloads'))
+        # self.verify_downloads_check.setChecked(form_settings.get('verify_downloads'))
         for checkbox in self.download_categories_check.items():
             if form_settings.get(checkbox[0]):
                 checkbox[1].setChecked(True)
@@ -209,8 +219,9 @@ class SettingsDialog(QDialog):
             form_settings = {
                 'download_path': self.download_edit_path.text(),
                 'download_concurrency': self.download_concurrency_edit.value(),
+                'reconnect_minutes': self.reconnect_minutes_edit.value(),
                 'platform_filter': [checkbox[0] for checkbox in self.platform_filter_check.items() if checkbox[1].isChecked()],
-                'verify_downloads': self.verify_downloads_check.isChecked(),
+                # 'verify_downloads': self.verify_downloads_check.isChecked(),
                 'installers': self.download_categories_check['installers'].isChecked(),
                 'bonus_content': self.download_categories_check['bonus_content'].isChecked(),
                 'patches': self.download_categories_check['patches'].isChecked(),

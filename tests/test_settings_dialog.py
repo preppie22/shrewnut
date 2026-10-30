@@ -11,6 +11,7 @@ from shrewnut.settings_dialog import SettingsDialog
 SAVED_SETTINGS = {
     "download_path": "/saved/path",
     "download_concurrency": 3,
+    "reconnect_minutes": 5,
     "platform_filter": ["Linux"],
     "verify_downloads": False,
     "bonus_content": True,
@@ -61,7 +62,6 @@ def test_dialog_loads_saved_settings_on_construction():
     assert dialog.platform_filter_check["Linux"].isChecked() is True
     assert dialog.platform_filter_check["Windows"].isChecked() is False
     assert dialog.platform_filter_check["MacOS"].isChecked() is False
-    assert dialog.verify_downloads_check.isChecked() is False
     assert dialog.download_categories_check["bonus_content"].isChecked() is True
     assert dialog.download_categories_check["patches"].isChecked() is False
 
@@ -125,7 +125,6 @@ def test_save_persists_edited_values():
     dialog = SettingsDialog()
     dialog.download_edit_path.setText("/new/path")
     dialog.download_concurrency_edit.setValue(7)
-    dialog.verify_downloads_check.setChecked(False)
     dialog.platform_filter_check["Windows"].setChecked(True)
     dialog.platform_filter_check["Linux"].setChecked(False)
     dialog.platform_filter_check["MacOS"].setChecked(False)
@@ -137,7 +136,6 @@ def test_save_persists_edited_values():
     saved = settings._read_settings()
     assert saved["download_path"] == "/new/path"
     assert saved["download_concurrency"] == 7
-    assert saved["verify_downloads"] is False
     assert saved["platform_filter"] == ["Windows"]
     assert saved["bonus_content"] is True
     assert saved["patches"] is False
@@ -418,3 +416,64 @@ def test_a_save_that_works_shows_no_error(monkeypatch):
 
     message_box.assert_not_called()
     assert dialog.result() == dialog.DialogCode.Accepted
+
+
+# --- Auto reconnect (#34) ---
+
+def test_dialog_shows_the_saved_reconnect_minutes():
+    settings.update_settings(SAVED_SETTINGS)
+
+    dialog = SettingsDialog()
+
+    assert dialog.reconnect_minutes_edit.value() == 5
+    assert dialog.reconnect_minutes_edit.text() == "5 min"
+
+
+def test_save_persists_the_reconnect_minutes():
+    dialog = SettingsDialog()
+    dialog.reconnect_minutes_edit.setValue(15)
+
+    click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    assert settings._read_settings()["reconnect_minutes"] == 15
+
+
+def test_zero_minutes_reads_off_and_saves_a_plain_zero():
+    # "0 min" would read like "reconnect instantly", the exact opposite of
+    # what it does. The box says Off, the file still gets a boring 0.
+    dialog = SettingsDialog()
+    dialog.reconnect_minutes_edit.setValue(0)
+
+    assert dialog.reconnect_minutes_edit.text() == "Off"
+
+    click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    assert settings._read_settings()["reconnect_minutes"] == 0
+
+
+def test_reconnect_minutes_tops_out_at_an_hour():
+    # Past an hour it isn't a VPN hiccup any more, it's a lifestyle.
+    dialog = SettingsDialog()
+    dialog.reconnect_minutes_edit.setValue(500)
+
+    assert dialog.reconnect_minutes_edit.value() == 60
+
+
+def test_restore_defaults_resets_reconnect_minutes_without_saving():
+    settings.update_settings(SAVED_SETTINGS)
+    dialog = SettingsDialog()
+
+    click(dialog, QDialogButtonBox.StandardButton.RestoreDefaults)
+
+    assert dialog.reconnect_minutes_edit.value() == settings.DEFAULT_SETTINGS["reconnect_minutes"]
+    assert settings._read_settings()["reconnect_minutes"] == 5
+
+
+def test_discard_restores_the_saved_reconnect_minutes():
+    settings.update_settings(SAVED_SETTINGS)
+    dialog = SettingsDialog()
+    dialog.reconnect_minutes_edit.setValue(42)
+
+    click(dialog, QDialogButtonBox.StandardButton.Discard)
+
+    assert dialog.reconnect_minutes_edit.value() == 5
