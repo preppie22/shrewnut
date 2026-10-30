@@ -30,14 +30,16 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QStyledItemDelegate,
     QMenu,
-    QToolButton
+    QToolButton,
+    QLineEdit
 )
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
     QKeySequence,
     QDesktopServices,
-    QCloseEvent
+    QCloseEvent,
+    QShortcut
 )
 from PySide6.QtCore import (
     Qt,
@@ -256,6 +258,13 @@ class MainWindow(QMainWindow):
         self.left_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable)
 
         # Main Games List
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search games")
+        self.search_box.setClearButtonEnabled(True)
+        self.search_box.textChanged.connect(self._filter_games)
+        self.search_shortcut = QShortcut(QKeySequence.StandardKey.Find, self)
+        self.search_shortcut.activated.connect(self.search_box.setFocus)
+
         self.games_list = QTreeWidget()
         self.games_list.setUniformRowHeights(True)
         self.games_list.itemDoubleClicked.connect(self.doubleclick_game_list)
@@ -285,6 +294,7 @@ class MainWindow(QMainWindow):
         self.button_layout.addButton(self.queue_download_button, QDialogButtonBox.ButtonRole.ActionRole)
 
         # Main Window Layout
+        self.library_layout.addWidget(self.search_box)
         self.library_layout.addWidget(self.games_list)
         self.library_layout.addWidget(self.button_layout)
 
@@ -317,6 +327,33 @@ class MainWindow(QMainWindow):
         """
         return not (self.download_window.current_state == DownloadState.IDLE and
             (self.fetch_thread is None or not self.fetch_thread.isRunning()))
+
+    def _filter_games(self, filter : str) -> None:
+        """Show only the games whose title or DLC titles contain the search.
+
+        Matching ignores case and finds the text anywhere in a title. Only
+        top-level rows are hidden. A game that matches, or has a DLC that
+        matches, is shown with all of its DLCs. Rows that get hidden are
+        also deselected, along with their DLCs, so Queue Selection can't
+        queue games the user can't see. An empty search shows every game.
+
+        Args:
+            filter (str): The text in the search box.
+        """
+        search = filter.casefold()
+        for i in range(self.games_list.topLevelItemCount()):
+            row = self.games_list.topLevelItem(i)
+            matched = False
+            if (search in row.text(Column.TITLE).casefold() or 
+                any(search in row.child(j).text(Column.TITLE).casefold() for j in range(row.childCount()))):
+                    matched = True
+            if matched:
+                row.setHidden(False)
+            else:
+                row.setHidden(True)
+                for j in range(row.childCount()):
+                    row.child(j).setSelected(False)
+                row.setSelected(False)
 
     def closeEvent(self, event: QCloseEvent):
         """Ask before quitting while downloads are running.
@@ -652,7 +689,8 @@ class MainWindow(QMainWindow):
         its own. The list starts out sorted by title, A to Z, and DLCs are
         sorted within their game. The Fetched column shows whether every
         file the current settings select for the product is already
-        downloaded, see ``_check_fetched``.
+        downloaded, see ``_check_fetched``. The search box's text is applied
+        again afterwards, so a reload keeps the list filtered.
 
         Args:
             result (list[dict]): Products from
@@ -686,6 +724,7 @@ class MainWindow(QMainWindow):
         self.games_list.setCurrentItem(self.games_list.topLevelItem(0))
         self.games_list.setFocus()
         self.games_list.expandAll()
+        self._filter_games(self.search_box.text())
 
     def _make_games_list_item(self, game: dict, fetched_games: dict) -> GameListItem:
         """Build a library row for a game or DLC, not yet added to the list.

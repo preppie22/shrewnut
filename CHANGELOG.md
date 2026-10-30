@@ -10,6 +10,7 @@ suffix until the first stable release), not SemVer.
 
 ### Added
 - Downloads now reconnect on their own when the connection drops. Shrewnut pauses them, checks every 10 seconds whether GOG is reachable again, and picks up where it left off once it is. The status line counts down the time left. If the connection isn't back within 2 minutes, you get the "Network Connection Lost" message as before. The time can be changed, or auto-reconnect turned off, with the new "Auto Reconnect" option in Settings ([#34](https://github.com/preppie22/shrewnut/issues/34))
+- A search box above the library list. Type part of a title to show only the games that match, ignoring case. A game also shows up when one of its DLCs matches, and DLCs always stay listed under their game. Ctrl+F jumps to the box ([#16](https://github.com/preppie22/shrewnut/issues/16))
 
 ### Removed
 - The "Prevent Redownload" checkbox in Settings. It never had any effect: files that were already downloaded are always skipped

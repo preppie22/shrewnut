@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import humanize
 import pytest
 from PySide6.QtCore import QProcess, Qt, QTimer, qVersion
-from PySide6.QtGui import QColor, QIcon, QPixmap, QTextDocument
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QTextDocument
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
@@ -1850,3 +1850,132 @@ def test_main_gives_the_app_its_acorn_before_any_box_can_pop_up(monkeypatch):
     assert icon_set is not None  # already set when migration got its turn
     [icon] = icon_set.args
     assert isinstance(icon, QIcon) and not icon.isNull()
+
+
+# --- Search box (#16) ---
+
+# FAKE_GAME's DLC, whose title has nothing in common with its base game's,
+# so a match on it can only be the DLC talking.
+FAKE_DLC = {"product_id": 113, "parent_id": 111, "title": "Revenge of the Sidequest", "slug": "revenge-of-the-sidequest", "download_size": 64}
+# Its base game never made it into the library, so it lives at the top level.
+ORPHAN_DLC = {"product_id": 99, "parent_id": 98, "title": "Lonely Expansion", "slug": "lonely-expansion", "download_size": 32}
+SEARCH_LIBRARY = [CULTIST, DANCER, PRIEST, FAKE_GAME, FAKE_DLC, FAKE_GAME_2, ORPHAN_DLC]
+
+
+def _shown(window):
+    # What the user actually sees: visible games, with each visible game's
+    # DLCs tucked in after it. A DLC under a hidden game is as good as hidden.
+    seen = []
+    for row in range(_row_count(window)):
+        item = _row(window, row)
+        if item.isHidden():
+            continue
+        seen.append(item.text(0))
+        seen += [item.child(i).text(0) for i in range(item.childCount()) if not item.child(i).isHidden()]
+    return seen
+
+
+def _search(window, text):
+    window.search_box.setText(text)  # textChanged does the rest, like a keystroke would
+
+
+def test_search_shows_games_with_the_text_anywhere_in_the_title_ignoring_case():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    _search(window, "fAKe")
+
+    assert _shown(window) == ["Fake Game", "Revenge of the Sidequest", "Second Fake Game"]
+
+
+def test_a_matching_game_brings_every_dlc_along_even_the_ones_that_dont_match():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    _search(window, "dancer")
+
+    # The Priest doesn't say "dancer" anywhere, but DLCs never get hidden.
+    # The family travels together or not at all.
+    assert _shown(window) == ["Cultist Simulator", "Cultist Simulator: The Dancer", "Cultist Simulator: The Priest"]
+
+
+def test_a_dlc_match_keeps_its_base_game_visible():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    _search(window, "sidequest")
+
+    assert _shown(window) == ["Fake Game", "Revenge of the Sidequest"]
+
+
+def test_a_dlc_without_its_base_game_is_searched_like_any_other_game():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    _search(window, "lonely")
+
+    assert _shown(window) == ["Lonely Expansion"]
+
+
+def test_a_search_that_matches_nothing_hides_every_game():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    _search(window, "half-life 3")
+
+    assert _shown(window) == []
+
+
+def test_clearing_the_search_brings_every_game_back():
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+    everything = _shown(window)
+    _search(window, "lonely")
+
+    window.search_box.clear()  # the little x in the box does the same
+
+    assert _shown(window) == everything
+    assert len(everything) == len(SEARCH_LIBRARY)
+
+
+def test_a_reload_keeps_the_search_applied():
+    # Closing Settings and Refresh both rebuild the list from scratch. The
+    # box still says "lonely", so the list had better agree with it.
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+    _search(window, "lonely")
+
+    window._on_games_loaded(SEARCH_LIBRARY)
+
+    assert _shown(window) == ["Lonely Expansion"]
+
+
+def test_queue_selection_skips_games_the_search_hid():
+    # Pick two games, search the second one away, then queue. Out of sight
+    # has to mean out of the queue too, DLCs included, or someone finds an
+    # extra 40 GB they never asked for.
+    window = MainWindow()
+    window._on_games_loaded(SEARCH_LIBRARY)
+    window.games_list.clearSelection()
+    _row(window, 0).setSelected(True)           # Cultist Simulator
+    _row(window, 0).child(0).setSelected(True)  # The Dancer
+    _row(window, 1).setSelected(True)           # Fake Game
+    queued = []
+    window.download_window.add_to_queue = MagicMock(side_effect=lambda row_data: queued.append(row_data["title"]))
+
+    _search(window, "fake")
+    window.onclick_queue_download()
+
+    assert queued == ["Fake Game"]
+
+
+def test_ctrl_f_puts_the_cursor_in_the_search_box():
+    window = MainWindow()
+    window.show()
+    window.activateWindow()
+    QTest.qWaitForWindowActive(window)
+    window.games_list.setFocus()
+
+    QTest.keySequence(window, QKeySequence(QKeySequence.StandardKey.Find))
+
+    assert window.search_box.hasFocus()
