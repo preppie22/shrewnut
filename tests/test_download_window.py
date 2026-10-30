@@ -1097,9 +1097,11 @@ def _record_dialogs():
 
 @patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
-def test_a_lost_connection_mid_download_pauses_and_says_why(mock_estimate):
+def test_a_lost_connection_with_reconnect_off_pauses_and_says_why(mock_estimate):
     # Regression (#29): a dead connection either hung forever or, with a
-    # timeout, failed every file in turn. Now: pause, explain, wait.
+    # timeout, failed every file in turn. With auto-reconnect Off, it's
+    # still the old deal: pause, explain, wait.
+    update_setting("reconnect_minutes", 0)
     mock_estimate.return_value = 1000
     window = DownloadWindow()
     window.add_to_queue(_row(product_id=1))
@@ -1113,7 +1115,7 @@ def test_a_lost_connection_mid_download_pauses_and_says_why(mock_estimate):
 
     assert titles == ["Network Connection Lost"]
     assert window.current_state == DownloadState.PAUSED
-    assert window.downloads_status.text() == "Downloads paused"
+    assert window.downloads_status.text() == "Connection lost. Downloads paused."
     assert window.start_button.text() == "Resume Downloads"
     assert window.start_button.isEnabled() is True
     assert _status_of(window, 0) == "yellow"
@@ -1122,6 +1124,7 @@ def test_a_lost_connection_mid_download_pauses_and_says_why(mock_estimate):
 @patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
 @sized_downloads()
 def test_a_lost_connection_waits_for_the_other_downloads_before_saying_paused(mock_estimate):
+    update_setting("reconnect_minutes", 0)
     update_setting("download_concurrency", 2)
     mock_estimate.return_value = 1000
     window = DownloadWindow()
@@ -1137,7 +1140,7 @@ def test_a_lost_connection_waits_for_the_other_downloads_before_saying_paused(mo
         _lose_the_connection(window, pid=1)
         _deliver_queued_signals()
 
-    assert window.downloads_status.text() == "Connection lost. Pausing..."
+    assert window.current_state != DownloadState.PAUSED
     assert window.start_button.isEnabled() is False
 
     slow_job["worker"].paused.emit({})
@@ -1145,6 +1148,341 @@ def test_a_lost_connection_waits_for_the_other_downloads_before_saying_paused(mo
     assert window.current_state == DownloadState.PAUSED
     assert window.downloads_status.text() == "Downloads paused"
     assert titles == ["Network Connection Lost"]
+
+
+# --- Auto-reconnect (#34) ---
+
+class _FakeCheck(QObject):
+    """A connection check that answers on the spot with whatever the test
+    told it to, instead of asking api.gog.com how it's feeling."""
+
+    up = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__()
+        self.answer = True
+        self.runs = 0
+
+    def start(self):
+        self.runs += 1
+        self.up.emit(self.answer)
+
+    def isRunning(self):
+        return False
+
+    def wait(self):
+        return True
+
+
+class _Clock:
+    """time.monotonic, but it only moves when the test says so."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def monotonic(self):
+        return self.now
+
+
+@pytest.fixture
+def clock():
+    fake = _Clock()
+    with patch("shrewnut.download_window.time", fake):
+        yield fake
+
+
+def _retry_timer(window):
+    return window._DownloadWindow__retry_timer
+
+
+def _countdown_timer(window):
+    return window._DownloadWindow__sec_timer
+
+
+def _reconnecting_window(concurrency=1, games=1):
+    """A window with its games downloading and the default 2 minutes of
+    auto-reconnect, waiting for a test to pull the plug."""
+    update_setting("download_concurrency", concurrency)
+    window = DownloadWindow()
+    for pid in range(1, games + 1):
+        window.add_to_queue(_row(title=f"Game {pid}", product_id=pid))
+    with _roomy_disk():
+        window.start_downloads()
+    return window
+
+
+def _fire_retry(window):
+    # What the single-shot timer does when its 10 seconds are up: go
+    # quiet, then call the slot.
+    _retry_timer(window).stop()
+    window._retry_connection()
+
+
+def _drop(window, pid=1):
+    _lose_the_connection(window, pid=pid)
+    _deliver_queued_signals()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_a_single_download_that_drops_counts_down_instead_of_nagging(mock_estimate, clock):
+    # The common case, and the sneaky one: with one download, "paused"
+    # beats the queued connection_lost to the window. Get the order wrong
+    # and nothing ever retries.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    titles, dialogs = _record_dialogs()
+
+    with dialogs:
+        _drop(window)
+
+    assert titles == []
+    assert window.current_state == DownloadState.PAUSED
+    assert window.downloads_status.text() == "Connection lost. Reconnecting... 2:00 left"
+    assert _retry_timer(window).isActive()
+    assert _countdown_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_no_retry_until_every_download_has_actually_paused(mock_estimate, clock):
+    # Resuming while a straggler is still pausing would strand it outside
+    # the paused queue. The countdown can start; the retries wait.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window(concurrency=2, games=2)
+    slow_job = next(j for j in window.scheduler.active_queue if j["product_id"] == 2)
+    slow_job["worker"].pause_worker = lambda: None
+    titles, dialogs = _record_dialogs()
+
+    with dialogs:
+        _drop(window, pid=1)
+
+    assert not _retry_timer(window).isActive()
+    assert window.downloads_status.text() == "Connection lost. Reconnecting... 2:00 left"
+
+    slow_job["worker"].paused.emit({})
+
+    assert window.current_state == DownloadState.PAUSED
+    assert _retry_timer(window).isActive()
+    assert titles == []
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_gog_coming_back_resumes_by_itself(mock_estimate, clock):
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    clock.now += 10
+
+    with _roomy_disk():
+        _fire_retry(window)
+
+    assert window.current_state == DownloadState.RUNNING
+    assert [j["product_id"] for j in window.scheduler.active_queue] == [1]
+    assert not _retry_timer(window).isActive()
+    assert not _countdown_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_gog_still_gone_means_try_again_later(mock_estimate, clock):
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    window.connection_check.answer = False
+    clock.now += 10
+    titles, dialogs = _record_dialogs()
+
+    with dialogs:
+        _fire_retry(window)
+
+    assert titles == []
+    assert window.current_state == DownloadState.PAUSED
+    assert _retry_timer(window).isActive()
+    assert window.connection_check.runs == 1
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_running_out_of_time_shows_the_old_dialog_and_stops_counting(mock_estimate, clock):
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    clock.now += 121
+    titles, dialogs = _record_dialogs()
+
+    with dialogs:
+        _fire_retry(window)
+
+    assert titles == ["Network Connection Lost"]
+    assert window.connection_check.runs == 0  # no point asking after the bell
+    # Live run caught it: the last tick's "0:00 left" stayed up, still
+    # promising a reconnect the window had already given up on.
+    assert window.downloads_status.text() == "Connection lost. Downloads paused."
+    assert not _countdown_timer(window).isActive()
+    assert not _retry_timer(window).isActive()
+    assert window.current_state == DownloadState.PAUSED
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_a_check_that_comes_back_empty_after_the_deadline_gives_up(mock_estimate, clock):
+    # The deadline slipped past while the check was out. Its "no" is the
+    # last word, not a reason to book another try.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    titles, dialogs = _record_dialogs()
+    clock.now += 125
+    _retry_timer(window).stop()  # it fired and sent the check out
+
+    with dialogs:
+        window._on_connection_check(False)
+
+    assert titles == ["Network Connection Lost"]
+    assert not _retry_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_a_resume_that_drops_straight_away_keeps_the_same_countdown(mock_estimate, clock):
+    # GOG's API answers but the download itself falls over again. A fresh
+    # 2 minutes every time would retry until the heat death of the VPN.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    clock.now += 60
+    with _roomy_disk():
+        _fire_retry(window)
+
+    _drop(window)
+
+    assert window.downloads_status.text() == "Connection lost. Reconnecting... 1:00 left"
+    assert _retry_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_bytes_arriving_end_the_countdown_so_the_next_drop_gets_a_fresh_one(mock_estimate, clock):
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    clock.now += 60
+    with _roomy_disk():
+        _fire_retry(window)
+    window._measure_speed()  # the first tick only sets the starting point
+    window.scheduler._handle_bytes_downloaded(500)
+    clock.now += 1
+    window._measure_speed()
+
+    _drop(window)
+
+    assert window.downloads_status.text() == "Connection lost. Reconnecting... 2:00 left"
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_reconnect_off_never_counts_down(mock_estimate, clock):
+    update_setting("reconnect_minutes", 0)
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    titles, dialogs = _record_dialogs()
+
+    with dialogs:
+        _drop(window)
+
+    assert titles == ["Network Connection Lost"]
+    assert not _retry_timer(window).isActive()
+    assert not _countdown_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_cancel_while_reconnecting_stays_cancelled(mock_estimate, clock):
+    # A check that answers after Cancel must not start the whole queue
+    # again from the top, "remove completed downloads?" question and all.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+
+    window.stop_downloads()
+    window._on_connection_check(True)
+
+    assert window.current_state == DownloadState.IDLE
+    assert window.scheduler.active_queue == []
+    assert not _retry_timer(window).isActive()
+    assert not _countdown_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_resuming_by_hand_while_reconnecting_takes_over(mock_estimate, clock):
+    # The user beat the timer to it. No countdown over "Downloading...",
+    # and no dialog popping up mid-download when the old deadline lapses.
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    titles, dialogs = _record_dialogs()
+
+    with _roomy_disk():
+        window._onclick_start_button()
+    clock.now += 125
+    with dialogs:
+        window._on_connection_check(False)
+
+    assert window.current_state == DownloadState.RUNNING
+    assert window.downloads_status.text() == "Downloading..."
+    assert titles == []
+    assert not _retry_timer(window).isActive()
+    assert not _countdown_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_pausing_by_hand_right_after_an_auto_resume_sticks(mock_estimate, clock):
+    # Auto-resumed, no bytes yet, and the user hits Pause. Ten seconds
+    # later the app resuming anyway would be a bold reading of "Pause".
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+    with _roomy_disk():
+        _fire_retry(window)
+
+    window._onclick_start_button()
+
+    assert window.current_state == DownloadState.PAUSED
+    assert window.downloads_status.text() == "Downloads paused"
+    assert not _retry_timer(window).isActive()
+
+
+@patch("shrewnut.download_window.ConnectionCheck", _FakeCheck)
+@patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)
+@sized_downloads()
+def test_the_countdown_reads_like_a_clock_then_admits_its_checking(mock_estimate, clock):
+    mock_estimate.return_value = 1000
+    window = _reconnecting_window()
+    _drop(window)
+
+    clock.now += 115.4
+    window._one_second_timeout()
+    assert window.downloads_status.text() == "Connection lost. Reconnecting... 0:04 left"
+
+    clock.now += 6
+    window._one_second_timeout()
+    assert window.downloads_status.text() == "Checking connection..."
 
 
 @patch("shrewnut.download_queue.DownloadWorkerThread", _IdleWorker)

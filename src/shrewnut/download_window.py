@@ -44,7 +44,7 @@ from PySide6.QtGui import (
     QKeySequence
 )
 from shrewnut.icon_utils import get_icon, status_indicator
-from shrewnut.download_queue import DownloadScheduler
+from shrewnut.download_queue import DownloadScheduler, ConnectionCheck
 from shrewnut.settings import read_setting
 
 import logging
@@ -52,6 +52,7 @@ log = logging.getLogger(__name__)
 
 LIGHT_FILL_COLOR = QColor("#4CAF50")
 DARK_FILL_COLOR = QColor("#1B5E20")
+RETRY_SECS = 10 # Seconds to wait before retrying a dropped connection
 
 class UserRole(IntEnum):
     """Custom item data roles used by the queue table.
@@ -159,6 +160,19 @@ class DownloadWindow(QDockWidget):
         busy_changed (Signal(bool)): Emitted whenever ``current_state`` is
             set. True while downloads are running or paused, False once
             the queue is idle.
+        connection_check (ConnectionCheck): Checks whether GOG is back
+            while reconnecting after a dropped connection. ``closeEvent``
+            in the main window waits for it before quitting.
+
+    Reconnecting: when the connection drops and the ``reconnect_minutes``
+    setting is above 0, the window sets a deadline instead of showing the
+    "Network Connection Lost" dialog. Once every download has paused, a
+    check runs every ``RETRY_SECS`` and a countdown in the status line
+    ticks every second. A check that finds GOG resumes the downloads. The
+    deadline lasts until bytes arrive again, so a resume that fails
+    straight away carries on the same countdown. Once it runs out, the
+    dialog is shown. Cancelling, pausing by hand and resuming by hand all
+    end the countdown.
     """
 
     game_succeeded = Signal('qlonglong')
@@ -179,13 +193,23 @@ class DownloadWindow(QDockWidget):
         self._disk_space_error = False
         self.__queue_map = {}
         self.__dl_speed_timer = QTimer()
+        self.__sec_timer = QTimer()
         self.__bytes_dled = 0
         self.__speed_buffer = deque([], 30)
         self.__time_now = 0
         self.eta_size = 0
 
+        self.__retry_timer = QTimer()
+        self.__retry_timer.setSingleShot(True)
+        self.__retry_deadline = 0
+
+        self.connection_check = ConnectionCheck()
+        self.connection_check.up.connect(self._on_connection_check)
+
         self._reset_scheduler()
         self.__dl_speed_timer.timeout.connect(self._measure_speed)
+        self.__retry_timer.timeout.connect(self._retry_connection)
+        self.__sec_timer.timeout.connect(self._one_second_timeout)
 
         self.setWindowTitle("Download Queue")
         self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable)
@@ -313,6 +337,11 @@ class DownloadWindow(QDockWidget):
         self.scheduler.disk_full.connect(self._on_disk_full, Qt.ConnectionType.QueuedConnection)
         self.scheduler.connection_lost.connect(self._on_connection_error, Qt.ConnectionType.QueuedConnection)
 
+    def _start_reconnection_timers(self):
+        """Start the retry timer and the once-a-second countdown."""
+        self.__retry_timer.start(RETRY_SECS*1000)
+        self.__sec_timer.start(1000)
+
     def add_to_queue(self, row_data: dict) -> int:
         """Add a game to the queue.
 
@@ -372,10 +401,15 @@ class DownloadWindow(QDockWidget):
         self.__queue_map[pid][Column.STATUS].setData(UserRole.STATUS_ROLE, color)
 
     def _onclick_start_button(self):
-        """Start, pause or resume downloads depending on the current state."""
+        """Start, pause or resume downloads depending on the current state.
+
+        Pausing by hand ends any reconnect deadline left from an automatic
+        resume that hasn't received bytes yet, so the pause sticks.
+        """
         if self.current_state == DownloadState.IDLE:
             self.start_downloads()
         elif self.current_state == DownloadState.RUNNING:
+            self.__retry_deadline = 0
             self.pause_downloads()
         elif self.current_state == DownloadState.PAUSED:
             self.start_downloads()
@@ -423,7 +457,13 @@ class DownloadWindow(QDockWidget):
         asked to start. If there is nothing left to download, the scheduler
         finishes during that call, and the window ends up idle instead of
         stuck on "Downloading...".
+
+        The reconnect timers stop here, whether the resume came from a
+        check that found GOG or from the user. The deadline stays until
+        bytes arrive, in case the resume fails straight away.
         """
+        self.__retry_timer.stop()
+        self.__sec_timer.stop()
         completed_downloads = []
         if self.game_queue_table.rowCount() == 0 or self.current_state == DownloadState.RUNNING:
             return
@@ -488,7 +528,14 @@ class DownloadWindow(QDockWidget):
         self.scheduler.pause_all()
 
     def stop_downloads(self):
-        """Ask the scheduler to cancel all downloads. Does nothing while idle."""
+        """Ask the scheduler to cancel all downloads. Does nothing while idle.
+
+        Ends any reconnecting first, even while idle, so a check that
+        answers later can't start the queue again.
+        """
+        self.__retry_timer.stop()
+        self.__sec_timer.stop()
+        self.__retry_deadline = 0
         if self.current_state == DownloadState.IDLE:
             return
         log.info("stopping downloads")
@@ -660,7 +707,11 @@ class DownloadWindow(QDockWidget):
         self._reset_all()
 
     def _on_paused(self):
-        """Switch to the paused state once all active downloads have paused."""
+        """Switch to the paused state once all active downloads have paused.
+
+        While reconnecting, this starts the retry timer and shows the
+        countdown, so a check only runs once nothing is still pausing.
+        """
         self.downloads_status.setText("Downloads paused")
         self.remove_button.setDisabled(False)
         self.remove_button.setToolTip("Remove selected items from queue (Del)")
@@ -670,7 +721,9 @@ class DownloadWindow(QDockWidget):
         self.start_button.setProperty('iconFile', 'resume.svg')
         self.start_button.setDisabled(False)
         self.clear_queue_button.setDisabled(False)
-
+        if self.__retry_deadline > 0:
+            self._start_reconnection_timers()
+            self._one_second_timeout()
 
     def _on_finished(self):
         """Show a summary of failed downloads and return to the idle state."""
@@ -749,15 +802,74 @@ class DownloadWindow(QDockWidget):
         confirmation.exec()
 
     def _on_connection_error(self):
-        """Tell the user that downloads paused because the connection dropped.
+        """Pause the downloads and start reconnecting, or say why they paused.
 
         Connected as a queued connection, so it runs after the scheduler
         has finished handling the dropped connection. The window switches
         to the pausing state if other downloads are still pausing.
+
+        With ``reconnect_minutes`` at 0, the "Network Connection Lost"
+        dialog is shown right away. Otherwise the reconnect deadline is
+        set, unless one is already running, and the countdown starts. With
+        a single download, ``paused`` arrived before this ran, so the retry
+        timer starts here. With several, ``_on_paused`` starts it once the
+        last one has paused.
         """
         self.pause_downloads()
-        if self.current_state != DownloadState.PAUSED:
-            self.downloads_status.setText("Connection lost. Pausing...")
+        reconnect_minutes = read_setting('reconnect_minutes')
+        if reconnect_minutes == 0:
+            self._connection_lost_dialog()
+        else:
+            if self.__retry_deadline == 0:
+                self.__retry_deadline = time.monotonic() + reconnect_minutes * 60
+                if self.current_state == DownloadState.PAUSED:
+                    self._start_reconnection_timers()
+            self.__sec_timer.start(1000)
+            self._one_second_timeout()
+
+
+    def _measure_speed(self):
+        """Update the speed and ETA label, once a second while running.
+
+        Each tick stores the bytes the scheduler received since the last
+        tick and the time that took, keeping the last 30. The speed shown
+        is the total bytes over the total time of the last 10 ticks. The
+        ETA divides what is left by the same average over all 30, so the
+        gaps between files don't make it jump. The first tick after
+        starting or resuming only sets the starting point. With no bytes
+        in the last 10 ticks, the speed shows 0 and the ETA is hidden. A
+        tick that saw bytes ends the reconnect deadline, so the next
+        dropped connection starts a fresh countdown.
+        """
+        if self.__time_now == 0:
+            self.__time_now = time.monotonic()
+            self.__bytes_dled = self.scheduler.bytes_downloaded
+            return
+        current_time = time.monotonic()
+        delta_time = current_time - self.__time_now
+        self.__time_now = current_time
+
+        total_bytes = self.scheduler.bytes_downloaded
+        delta_bytes = total_bytes - self.__bytes_dled
+        if delta_bytes > 0:
+            self.__retry_deadline = 0
+        self.__bytes_dled = total_bytes
+        self.__speed_buffer.append((delta_time, delta_bytes))
+
+        if len(self.__speed_buffer) < 2:
+            return
+        speed_buffer = tuple(self.__speed_buffer)
+        avg_speed = sum(buffer[1] for buffer in speed_buffer[-10:]) / sum(buffer[0] for buffer in speed_buffer[-10:])
+        avg_eta = self.eta_size / (sum(buffer[1] for buffer in speed_buffer) / sum(buffer[0] for buffer in speed_buffer)) if avg_speed > 0 else 0
+        speed_str = f"{humanize.naturalsize(avg_speed)}/s"
+        speed_str += f" (ETA: {humanize.naturaldelta(dt.timedelta(seconds=avg_eta))})" if avg_speed > 0 else ""
+        self.download_speed.setText(speed_str)
+
+    def _connection_lost_dialog(self):
+        """Stop reconnecting and show the "Network Connection Lost" dialog."""
+        self.__sec_timer.stop()
+        self.__retry_deadline = 0
+        self.downloads_status.setText("Connection lost. Downloads paused.")
         QMessageBox(
             QMessageBox.Icon.Warning,
             "Network Connection Lost",
@@ -770,38 +882,54 @@ class DownloadWindow(QDockWidget):
                 "before resuming."
         ).exec()
 
-    def _measure_speed(self):
-        """Update the speed and ETA label, once a second while running.
+    def _retry_connection(self):
+        """Run a connection check, or give up once the deadline has passed.
 
-        Each tick stores the bytes the scheduler received since the last
-        tick and the time that took, keeping the last 30. The speed shown
-        is the total bytes over the total time of the last 10 ticks. The
-        ETA divides what is left by the same average over all 30, so the
-        gaps between files don't make it jump. The first tick after
-        starting or resuming only sets the starting point. With no bytes
-        in the last 10 ticks, the speed shows 0 and the ETA is hidden.
+        Connected to the retry timer. A check that is still running is
+        left to finish instead of starting another.
         """
-        if self.__time_now == 0:
-            self.__time_now = time.monotonic()
-            self.__bytes_dled = self.scheduler.bytes_downloaded
+        remaining = self.__retry_deadline - time.monotonic()
+        if remaining <= 0:
+            self._connection_lost_dialog()
             return
-        current_time = time.monotonic()
-        delta_time = current_time - self.__time_now
-        self.__time_now = current_time
+        if not self.connection_check.isRunning():
+            self.connection_check.start()
 
-        total_bytes = self.scheduler.bytes_downloaded
-        delta_bytes = total_bytes - self.__bytes_dled
-        self.__bytes_dled = total_bytes
-        self.__speed_buffer.append((delta_time, delta_bytes))
+    def _on_connection_check(self, up: bool):
+        """Resume, retry or give up with a connection check's result.
 
-        if len(self.__speed_buffer) < 2:
+        Ignored unless the queue is paused and still reconnecting, so a
+        check that answers after a Cancel or a manual Resume or Pause does
+        nothing. Reachable resumes the downloads. Unreachable shows the
+        dialog if the deadline has passed and waits ``RETRY_SECS`` for the
+        next check otherwise.
+
+        Args:
+            up (bool): True if GOG answered.
+        """
+        if self.current_state != DownloadState.PAUSED or self.__retry_deadline == 0:
             return
-        speed_buffer = tuple(self.__speed_buffer)
-        avg_speed = sum(buffer[1] for buffer in speed_buffer[-10:]) / sum(buffer[0] for buffer in speed_buffer[-10:])
-        avg_eta = self.eta_size / (sum(buffer[1] for buffer in speed_buffer) / sum(buffer[0] for buffer in speed_buffer)) if avg_speed > 0 else 0
-        speed_str = f"{humanize.naturalsize(avg_speed)}/s"
-        speed_str += f" (ETA: {humanize.naturaldelta(dt.timedelta(seconds=avg_eta))})" if avg_speed > 0 else ""
-        self.download_speed.setText(speed_str)
+        if up:
+            self.start_downloads()
+        else:
+            remaining = self.__retry_deadline - time.monotonic()
+            if remaining <= 0:
+                self._connection_lost_dialog()
+            else:
+                self.__retry_timer.start(RETRY_SECS*1000)
+
+    def _one_second_timeout(self):
+        """Show the time left to reconnect in the status line.
+
+        Shows "Checking connection..." once the deadline has passed while
+        the last check is still running.
+        """
+        remaining = self.__retry_deadline - time.monotonic()
+        if remaining < 0:
+            self.downloads_status.setText("Checking connection...")
+        else:
+            mins, secs = divmod(int(remaining), 60)
+            self.downloads_status.setText(f"Connection lost. Reconnecting... {mins}:{secs:02d} left")
 
     def _reset_status(self):
         """Show the ready message if the queue is idle."""

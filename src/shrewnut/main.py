@@ -336,6 +336,8 @@ class MainWindow(QMainWindow):
             event (QCloseEvent): The close request. Ignoring it keeps the
                 window open.
         """
+        if self.download_window.connection_check.isRunning():
+            self.download_window.connection_check.wait()
         if self.quit_pending and self._threads_busy():
             event.ignore()
             return

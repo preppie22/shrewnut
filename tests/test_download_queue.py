@@ -3856,3 +3856,58 @@ def test_a_damaged_manifest_means_download_it_again_not_crash(caplog):
     result = download_queue.generate_download_list((111,))
 
     assert by_file(result, "file1") is not None
+
+
+# --- ConnectionCheck (#34) ---
+
+def run_connection_check():
+    check = download_queue.ConnectionCheck()
+    heard = []
+    check.up.connect(lambda reachable: heard.append("up" if reachable else "down"))
+    check.run()
+    return heard
+
+
+@patch("shrewnut.download_queue.requests.head")
+def test_connection_check_says_up_when_gog_answers(mock_head):
+    mock_head.return_value = MagicMock(status_code=200)
+
+    assert run_connection_check() == ["up"]
+    assert mock_head.call_args.args[0].startswith("https://api.gog.com")
+
+
+@patch("shrewnut.download_queue.requests.head")
+def test_connection_check_counts_a_rude_answer_as_up(mock_head):
+    # A 404 from GOG is still GOG talking to us. Rude, but online.
+    mock_head.return_value = MagicMock(status_code=404)
+
+    assert run_connection_check() == ["up"]
+
+
+@pytest.mark.parametrize("error", [
+    requests.exceptions.ConnectionError("VPN went for a walk"),
+    requests.exceptions.Timeout("still waiting"),
+    requests.exceptions.SSLError("handshake declined"),
+    requests.exceptions.RequestException("something else entirely"),
+])
+@patch("shrewnut.download_queue.requests.head")
+def test_connection_check_says_down_exactly_once_when_the_request_fails(mock_head, error):
+    # One "down", no encore. A bonus "up" on the way out would resume
+    # downloads into a connection that isn't there.
+    mock_head.side_effect = error
+
+    assert run_connection_check() == ["down"]
+
+
+@patch("shrewnut.download_queue.requests.head")
+def test_connection_check_uses_the_short_timeout(mock_head):
+    # The window is waiting on this. Three seconds of hope, not fifteen.
+    mock_head.return_value = MagicMock(status_code=200)
+
+    run_connection_check()
+
+    assert mock_head.call_args.kwargs["timeout"] == download_queue.HTTP_TIMEOUT_SHORT
+
+
+def test_connection_check_needs_no_parent():
+    assert download_queue.ConnectionCheck().parent() is None

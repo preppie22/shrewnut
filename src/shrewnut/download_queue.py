@@ -9,7 +9,7 @@ from shrewnut import library_db
 from shrewnut import settings
 from shrewnut import gog_api
 from shrewnut import manifest
-from shrewnut.constants import HTTP_TIMEOUT
+from shrewnut.constants import HTTP_TIMEOUT, HTTP_TIMEOUT_SHORT
 from shrewnut.log_setup import DOWNLOAD_LOGGER
 
 import humanize
@@ -1006,6 +1006,39 @@ class DownloadWorkerThread(QThread):
     def update_progress(self):
         """Emit the current progress."""
         self.progress.emit(self.__fetched_size, self.__total_size)
+
+class ConnectionCheck(QThread):
+    """Checks once whether GOG can be reached.
+
+    Sends a HEAD request to the GOG API, the first host a resumed download
+    contacts. Any answer, even an error status, counts as reachable.
+
+    Attributes:
+        up (Signal(bool)): Emitted once per run, True if GOG answered and
+            False if the request failed or timed out.
+    """
+    up = Signal(bool)
+
+    def __init__(self, parent=None):
+        """Create the check. Start it with ``start``.
+
+        Args:
+            parent (QObject): Optional parent object.
+        """
+        super().__init__(parent)
+
+    def run(self):
+        """Send the request and emit ``up`` with the result.
+
+        Every ``requests`` error counts as unreachable, so ``up`` is
+        emitted exactly once.
+        """
+        try:
+            requests.head("https://api.gog.com", timeout=HTTP_TIMEOUT_SHORT)
+        except requests.exceptions.RequestException:
+            self.up.emit(False)
+        else:
+            self.up.emit(True)
 
 def _safe_size(path: Path) -> int:
     """Return a file's size, or 0 if it cannot be read.
