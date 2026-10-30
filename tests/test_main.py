@@ -9,10 +9,10 @@ from unittest.mock import MagicMock, patch
 
 import humanize
 import pytest
-from PySide6.QtCore import QProcess, Qt, QTimer, qVersion
+from PySide6.QtCore import QPoint, QProcess, Qt, QTimer, qVersion
 from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QTextDocument
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
 
 from shrewnut import gog_auth, library_db, manifest
 from shrewnut.login_window import ExitCode
@@ -656,7 +656,7 @@ def test_doubleclick_after_sorting_queues_the_game_on_that_row_now():
     window.games_list.sortByColumn(1, Qt.SortOrder.DescendingOrder)
     window.download_window.add_to_queue = MagicMock(return_value=0)
 
-    window.doubleclick_game_list(_row(window, 0), 0)
+    window._on_doubleclick_game_list(_row(window, 0), 0)
 
     window.download_window.add_to_queue.assert_called_once_with(
         {"product_id": 2, "title": "Beta", "size": SIZE_TEXT["Beta"]}
@@ -742,7 +742,7 @@ def test_doubleclick_while_queue_is_busy_tells_the_user_to_hold_their_horses():
     window.error_message.showMessage = MagicMock()
     window.download_window.add_to_queue = MagicMock(return_value=-1)
 
-    window.doubleclick_game_list(_row(window, 0), 0)
+    window._on_doubleclick_game_list(_row(window, 0), 0)
 
     window.error_message.showMessage.assert_called_once_with(
         "Please wait for pending operations to complete before queuing downloads"
@@ -756,7 +756,7 @@ def test_doubleclick_that_queues_fine_keeps_its_damn_mouth_shut():
     window.error_message.showMessage = MagicMock()
     window.download_window.add_to_queue = MagicMock(return_value=0)
 
-    window.doubleclick_game_list(_row(window, 0), 0)
+    window._on_doubleclick_game_list(_row(window, 0), 0)
 
     window.error_message.showMessage.assert_not_called()
 
@@ -1034,7 +1034,7 @@ def test_doubleclick_on_a_dlc_queues_the_dlc_not_its_base_game():
     window._on_games_loaded([CULTIST, DANCER])
     window.download_window.add_to_queue = MagicMock(return_value=0)
 
-    window.doubleclick_game_list(_row(window, 0).child(0), 0)
+    window._on_doubleclick_game_list(_row(window, 0).child(0), 0)
 
     window.download_window.add_to_queue.assert_called_once_with(
         {"product_id": 11, "title": "Cultist Simulator: The Dancer", "size": humanize.naturalsize(300)}
@@ -1220,6 +1220,21 @@ def test_open_downloads_folder_hands_the_download_path_to_the_file_manager(mock_
 
 
 @patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+def test_open_downloads_folder_follows_a_path_changed_after_startup(mock_open_url, tmp_path):
+    # The button reads the setting when it's clicked, not when the window
+    # was built. Otherwise a move to the NAS keeps opening the old folder
+    # until a restart, like mail forwarding that only kicks in next year.
+    update_setting("download_path", str(tmp_path / "old"))
+    window = MainWindow()
+    update_setting("download_path", str(tmp_path / "new"))
+
+    window.open_downloads_button.trigger()
+
+    [url] = mock_open_url.call_args.args
+    assert url.toLocalFile() == str(tmp_path / "new")
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
 def test_open_downloads_folder_makes_the_folder_on_a_fresh_install(mock_open_url, tmp_path):
     # Nothing downloaded yet means no folder yet. Opening a folder that
     # doesn't exist gets you an error dialog or a shrug, depending on the
@@ -1228,7 +1243,7 @@ def test_open_downloads_folder_makes_the_folder_on_a_fresh_install(mock_open_url
     update_setting("download_path", str(download_dir))
     window = MainWindow()
 
-    window.open_downloads_folder()
+    window.open_downloads_button.trigger()
 
     assert download_dir.is_dir()
     mock_open_url.assert_called_once()
@@ -1245,7 +1260,7 @@ def test_open_downloads_folder_says_so_when_the_folder_cant_be_made(mock_open_ur
     update_setting("download_path", str(squatter / "shrewnut"))
     window = MainWindow()
 
-    window.open_downloads_folder()
+    window.open_downloads_button.trigger()
 
     mock_open_url.assert_not_called()
     mock_warning.assert_called_once()
@@ -1260,7 +1275,7 @@ def test_open_downloads_folder_speaks_up_when_nothing_can_open_folders(mock_open
     update_setting("download_path", str(tmp_path))
     window = MainWindow()
 
-    window.open_downloads_folder()
+    window.open_downloads_button.trigger()
 
     mock_critical.assert_called_once()
     _parent, title, text = mock_critical.call_args.args
@@ -1979,3 +1994,102 @@ def test_ctrl_f_puts_the_cursor_in_the_search_box():
     QTest.keySequence(window, QKeySequence(QKeySequence.StandardKey.Find))
 
     assert window.search_box.hasFocus()
+
+
+# --- Right-click menu (#27) ---
+
+def _right_click(window, item, pick=None):
+    # menu.exec() would sit there waiting for a human. Stand in for the
+    # human: note what the menu offered, click `pick` if asked, and leave.
+    # The actions only live as long as the handler does, so the clicking
+    # has to happen in here, not after the menu is gone.
+    # Patching exec on QMenu itself does nothing: PySide finds the C++
+    # method on the instance and never looks at the class. A subclass of
+    # our own is something it can't walk past.
+    offered = []
+
+    class _Menu(QMenu):
+        def exec(self, *_):
+            offered.append({action.text(): action.isEnabled() for action in self.actions()})
+            if pick:
+                next(action for action in self.actions() if action.text() == pick).trigger()
+
+    window.show()
+    pos = window.games_list.visualItemRect(item).center() if item else None
+    if pos is None:
+        # Below the last row, where there's nothing but regret.
+        last = window.games_list.visualItemRect(_row(window, _row_count(window) - 1))
+        pos = last.bottomLeft() + QPoint(5, 20)
+    with patch("shrewnut.main.QMenu", _Menu):
+        window.games_list.customContextMenuRequested.emit(pos)
+    return offered
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+def test_right_click_open_folder_opens_that_games_folder(mock_open_url, tmp_path):
+    update_setting("download_path", str(tmp_path))
+    _stock_the_library([FAKE_GAME, FAKE_GAME_2])
+    (tmp_path / "second-fake-game").mkdir()
+    window = MainWindow()
+    window._on_games_loaded(library_db.get_product_listing())
+
+    offered = _right_click(window, _row(window, 1), pick="Open folder")
+
+    assert offered == [{"Open folder": True, "Add to Queue": True}]
+    [url] = mock_open_url.call_args.args
+    assert url.toLocalFile() == str(tmp_path / "second-fake-game")
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+def test_right_click_open_folder_on_a_dlc_opens_its_base_games_folder(mock_open_url, tmp_path):
+    # DLCs move in with their parents. There is no "cultist-simulator-the-dancer"
+    # folder, and making one would just be an empty room with a nice name.
+    update_setting("download_path", str(tmp_path))
+    _stock_the_library([CULTIST, DANCER, PRIEST])
+    (tmp_path / "cultist-simulator").mkdir()
+    window = MainWindow()
+    window._on_games_loaded(library_db.get_product_listing())
+
+    _right_click(window, _row(window, 0).child(0), pick="Open folder")
+
+    [url] = mock_open_url.call_args.args
+    assert url.toLocalFile() == str(tmp_path / "cultist-simulator")
+    assert not (tmp_path / "cultist-simulator-the-dancer").exists()
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl")
+def test_right_click_open_folder_is_greyed_out_until_the_game_has_a_folder(mock_open_url, tmp_path):
+    update_setting("download_path", str(tmp_path))
+    _stock_the_library([FAKE_GAME])
+    window = MainWindow()
+    window._on_games_loaded(library_db.get_product_listing())
+
+    offered = _right_click(window, _row(window, 0))
+
+    assert offered == [{"Open folder": False, "Add to Queue": True}]
+    assert not (tmp_path / "fake-game").exists()
+    mock_open_url.assert_not_called()
+
+
+def test_right_click_add_to_queue_queues_the_whole_selection():
+    # Right-clicking one of several selected rows acts on all of them, the
+    # way every file manager does it. One row queued out of three selected
+    # would be a magic trick nobody asked for.
+    _stock_the_library(SIZED_GAMES)  # the menu looks up the clicked game's folder
+    window = MainWindow()
+    window._on_games_loaded(SIZED_GAMES)
+    for row in range(3):
+        _row(window, row).setSelected(True)
+    queued = []
+    window.download_window.add_to_queue = MagicMock(side_effect=lambda row_data: queued.append(row_data["title"]))
+
+    _right_click(window, _row(window, 1), pick="Add to Queue")
+
+    assert queued == ["Alpha", "Beta", "Gamma"]
+
+
+def test_right_click_on_empty_space_shows_no_menu():
+    window = MainWindow()
+    window._on_games_loaded([FAKE_GAME])
+
+    assert _right_click(window, None) == []

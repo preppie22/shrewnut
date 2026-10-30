@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         # Open Downloads Folder
         self.open_downloads_button = QAction("Open Downloads Folder", self, icon=get_icon('download_folder.svg'))
         self.open_downloads_button.setProperty('iconFile', 'download_folder.svg')
-        self.open_downloads_button.triggered.connect(self.open_downloads_folder)
+        self.open_downloads_button.triggered.connect(lambda: self.open_folder(Path(read_setting('download_path'))))
         self.main_toolbar.addAction(self.open_downloads_button)
 
         # Spacer
@@ -266,8 +266,10 @@ class MainWindow(QMainWindow):
         self.search_shortcut.activated.connect(self.search_box.setFocus)
 
         self.games_list = QTreeWidget()
+        self.games_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.games_list.customContextMenuRequested.connect(self._on_rightclick_game_list)
         self.games_list.setUniformRowHeights(True)
-        self.games_list.itemDoubleClicked.connect(self.doubleclick_game_list)
+        self.games_list.itemDoubleClicked.connect(self._on_doubleclick_game_list)
         self.games_list.setExpandsOnDoubleClick(False)
         self.games_list.setColumnCount(len(Column))
         self.games_list.setHeaderLabels(['Title', 'Size', 'Fetched'])
@@ -480,15 +482,18 @@ class MainWindow(QMainWindow):
         self._on_games_loaded(library_db.get_product_listing())
         settings_dialog.deleteLater()
 
-    def open_downloads_folder(self):
-        """Open the download folder in the system file manager.
+    def open_folder(self, folder_path: Path):
+        """Open a folder in the system file manager.
 
-        The folder is created first if it doesn't exist yet. If it can't
-        be created, for example on an unmounted network share, a warning
-        shows the path and the error instead. If the system has nothing
-        that can open folders, an error says so.
+        Used by the Open Downloads Folder button and by a game's right-click
+        menu. The folder is created first if it doesn't exist yet. If it
+        can't be created, for example on an unmounted network share, a
+        warning shows the path and the error instead. If the system has
+        nothing that can open folders, an error says so.
+
+        Args:
+            folder_path (Path): The folder to open.
         """
-        folder_path = Path(read_setting('download_path'))
         try:
             folder_path.mkdir(parents=True, exist_ok=True)
         except OSError as e:
@@ -628,7 +633,7 @@ class MainWindow(QMainWindow):
                 self.error_message.showMessage("Please wait for pending operations to complete before queuing downloads")
                 break
 
-    def doubleclick_game_list(self, item, _):
+    def _on_doubleclick_game_list(self, item, _):
         """Add the double-clicked game to the download queue.
 
         Args:
@@ -643,6 +648,36 @@ class MainWindow(QMainWindow):
         if idx == -1:
             self.error_message.setWindowTitle("Error Queuing")
             self.error_message.showMessage("Please wait for pending operations to complete before queuing downloads")
+
+    def _on_rightclick_game_list(self, pos):
+        """Show the right-click menu for the row under the cursor.
+
+        "Open folder" opens the game's download folder, which for a DLC is
+        its base game's folder. It's greyed out until that folder exists.
+        "Add to Queue" queues the selection, the same as Queue Selection.
+        Right-clicking empty space shows no menu.
+
+        Args:
+            pos (QPoint): Where the click landed, relative to the list's
+                viewport.
+        """
+        row_item = self.games_list.itemAt(pos)
+        if not row_item:
+            return
+        item_path : Path = Path(read_setting('download_path')) / library_db.get_product_listing((row_item.data(Column.TITLE, UserRole.PRODUCT_ID_ROLE),))[0]['slug']
+
+        open_folder = QAction("Open folder")
+        open_folder.setEnabled(item_path.exists())
+        open_folder.triggered.connect(lambda: self.open_folder(item_path))
+
+        add_to_queue = QAction("Add to Queue")
+        add_to_queue.triggered.connect(lambda: self.onclick_queue_download())
+
+        menu = QMenu(self)
+        menu.addAction(open_folder)
+        menu.addAction(add_to_queue)
+        menu.exec(self.games_list.viewport().mapToGlobal(pos))
+        menu.deleteLater()
 
     def update_fetch_progress(self, progress: int):
         """Show metadata fetch progress in the status bar.
