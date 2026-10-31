@@ -58,11 +58,11 @@ I'd appreciate your feedback on bugs, features, or improvements in the [issues s
 - Prevents files from being re-downloaded if they are already on disk
 - Dark mode and light mode support
 - Auto-update for Linux users using GearLever
+- Auto-resume when internet reconnects after a drop
+- Search bar lookup for large libraries
 
 Planned:
 - Scanning existing directories for downloaded files ([#28](https://github.com/preppie22/shrewnut/issues/28))
-- Search bar lookup for large libraries ([#16](https://github.com/preppie22/shrewnut/issues/16))
-- Auto-resume when internet reconnects after a drop ([#34](https://github.com/preppie22/shrewnut/issues/34))
 - Pick individual files to download for each game ([#36](https://github.com/preppie22/shrewnut/issues/36))
 - Non-intrusive update notification ([#37](https://github.com/preppie22/shrewnut/issues/37))
 
