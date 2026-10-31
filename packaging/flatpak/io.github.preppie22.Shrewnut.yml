@@ -1,0 +1,34 @@
+id: io.github.preppie22.Shrewnut
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: shrewnut
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=xdg-download
+  - --filesystem=xdg-config/kdeglobals:ro
+  - --env=QT_QPA_PLATFORMTHEME=kde
+modules:
+  - name: shrewnut
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+    build-commands:
+      - pip3 install --prefix=/app --no-cache-dir requests PySide6-Essentials platformdirs humanize pywebview
+      - pip3 install --prefix=/app --no-cache-dir --no-deps .
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .venv
+          - scratch
+          - .git
+          - build
+          - .flatpak-builder
+
+
