@@ -41,7 +41,7 @@ RUN apt-get install -y \
         gcc \
         gir1.2-gtk-3.0
 
-RUN curl -L -o /usr/local/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage \
+RUN curl -L -o /usr/local/bin/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
     && chmod +x /usr/local/bin/appimagetool
 WORKDIR /build
 COPY . /build/

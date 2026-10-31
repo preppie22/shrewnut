@@ -35,6 +35,10 @@ appimage-build/
 !provisional/
 !images/
 
+# Flatpak
+.flatpak-builder
+.flatpak
+
 # OS cruft
 .DS_Store
 
