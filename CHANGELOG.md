@@ -6,12 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage
 suffix until the first stable release), not SemVer.
 
-## [Unreleased]
+## [2026.10.30-beta] - 2026-10-30
 
 ### Added
 - Downloads resume on their own when a dropped connection comes back within 2 minutes. The time can be changed, or this turned off, with "Auto Reconnect" in Settings ([#34](https://github.com/preppie22/shrewnut/issues/34))
 - A search box above the library list. Ctrl+F jumps to the box ([#16](https://github.com/preppie22/shrewnut/issues/16))
 - Right-click a game to open its download folder, add it to the queue or view it on GOG ([#27](https://github.com/preppie22/shrewnut/issues/27))
+
+### Fixed
+- Lists in dark mode on Windows alternate black and grey rows instead of black and navy
 
 ### Removed
 - The "Prevent Redownload" checkbox in Settings. It never had any effect: files that were already downloaded are always skipped
