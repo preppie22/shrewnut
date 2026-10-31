@@ -31,26 +31,28 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QMenu,
     QToolButton,
-    QLineEdit
+    QLineEdit,
 )
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
     QKeySequence,
-    QDesktopServices,
     QCloseEvent,
-    QShortcut
+    QShortcut,
+    QPalette,
+    QColor,
+    QDesktopServices,
 )
 from PySide6.QtCore import (
     Qt,
     QSize,
-    QUrl,
     QProcess,
-    QProcessEnvironment,
-    QTimer,
     QThread,
     qVersion,
-    Signal
+    Signal,
+    QUrl,
+    QProcessEnvironment,
+    QTimer
 )
 
 from shrewnut import gog_auth
@@ -451,6 +453,14 @@ class MainWindow(QMainWindow):
 
     def _color_scheme_refresh(self) -> None:
         """Reload toolbar and button icons for the current color scheme."""
+        if sys.platform == "win32":
+            scheme = QApplication.styleHints().colorScheme()
+            if scheme == Qt.ColorScheme.Dark:
+                base_palette = QPalette()
+                base_palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#383838"))
+                QApplication.setPalette(base_palette)
+            else:
+                QApplication.setPalette(QPalette())
         for button in self.main_toolbar.actions():
             icon_file = button.property('iconFile')
             if icon_file:
