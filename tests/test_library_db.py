@@ -209,20 +209,63 @@ def test_update_cache_links_dlc_to_its_parent_even_when_the_dlc_comes_first():
     assert rows[333]["parent_id"] is None
 
 
-def test_update_cache_leaves_parent_empty_for_a_dlc_whose_game_is_not_owned():
+def test_update_cache_skips_a_dlc_whose_game_is_not_owned_along_with_its_files():
+    # GOG swapped the base game for an edition that already has the hats
+    # sewn in. The DLC stays in the library like a sock without its pair.
+    library_db.update_cache([FAKE_PRODUCT, FAKE_DLC])
+
+    assert [row["product_id"] for row in query_all("product")] == [111]
+    assert all(row["product_id"] != 555 for row in query_all("download_group"))
+    assert all(row["product_id"] != 555 for row in query_all("download_file"))
+
+
+def test_update_cache_adds_a_skipped_dlc_once_its_game_is_owned():
     library_db.update_cache([FAKE_DLC])
+    assert query_all("product") == []
 
-    row = query_all("product")[0]
-    assert row["product_id"] == 555
-    assert row["parent_id"] is None
-
-
-def test_update_cache_fills_in_a_parent_found_on_a_later_refresh():
-    library_db.update_cache([FAKE_DLC])
     library_db.update_cache([FAKE_DLC, FAKE_GAME_WITH_DLC])
 
     row = next(r for r in query_all("product") if r["product_id"] == 555)
     assert row["parent_id"] == 333
+
+
+def test_update_cache_drops_a_product_that_is_no_longer_owned():
+    # Refunded, delisted, or swapped for a shinier edition: gone from GOG's
+    # list means gone from ours, instead of haunting the library forever.
+    library_db.update_cache([FAKE_PRODUCT, FAKE_PRODUCT_2])
+    library_db.update_cache([FAKE_PRODUCT])
+
+    assert [row["product_id"] for row in query_all("product")] == [111]
+    assert all(row["product_id"] != 222 for row in query_all("download_group"))
+    assert all(row["product_id"] != 222 for row in query_all("download_file"))
+
+
+def test_update_cache_drops_files_gog_no_longer_lists_for_an_owned_game():
+    library_db.update_cache([FAKE_PRODUCT])
+
+    trimmed = copy.deepcopy(FAKE_PRODUCT)
+    del trimmed["downloads"]["bonus_content"]
+    trimmed["downloads"]["installers"][0]["files"].pop()
+    library_db.update_cache([trimmed])
+
+    assert [row["group_id"] for row in query_all("download_group")] == ["installer_windows_en"]
+    assert [row["file_id"] for row in query_all("download_file")] == ["file1"]
+
+
+def test_update_cache_keeps_the_old_cache_when_the_write_fails():
+    # The tables are emptied inside the same transaction as the inserts, so a
+    # write that blows up halfway rolls the whole thing back. An empty library
+    # after a failed refresh would be a cruel way to report an error.
+    library_db.update_cache([FAKE_PRODUCT])
+    broken = library_db.DownloadValues(group_rows=[], file_rows=[("one value short of a row",)])
+
+    with patch.object(library_db, "_downloads_values", return_value=broken):
+        with pytest.raises(sqlite3.ProgrammingError):
+            library_db.update_cache([FAKE_PRODUCT_2])
+
+    assert query_all("product") == [EXPECTED_FAKE_PRODUCT_ROW]
+    assert len(query_all("download_group")) == 2
+    assert len(query_all("download_file")) == 3
 
 
 def test_update_cache_keeps_dlc_files_under_the_dlc_not_the_parent():
@@ -272,7 +315,7 @@ def test_update_cache_inserts_groups_and_files():
     }
 
 
-def test_update_cache_upsert_updates_existing_rows_not_duplicates():
+def test_update_cache_replaces_existing_rows_instead_of_duplicating_them():
     library_db.update_cache([FAKE_PRODUCT])
 
     updated = copy.deepcopy(FAKE_PRODUCT)
@@ -284,7 +327,7 @@ def test_update_cache_upsert_updates_existing_rows_not_duplicates():
     groups = query_all("download_group")
     files = query_all("download_file")
 
-    assert len(groups) == 2  # still 2, not 4: upsert not duplicate, we're not that sloppy
+    assert len(groups) == 2  # still 2, not 4: replaced, not duplicated, we're not that sloppy
     assert len(files) == 3  # still 3 files, not 6
 
     installer_group = next(r for r in groups if r["group_id"] == "installer_windows_en")
@@ -480,14 +523,12 @@ def test_get_product_listing_for_just_the_dlc_still_finds_the_parents_folder():
     assert dlc["slug"] == "hat-simulator"
 
 
-def test_get_product_listing_lets_an_orphan_dlc_keep_its_own_folder():
-    # Own the DLC, not the game: no parent to move in with, so it gets its own
-    # place rather than a folder called None.
-    library_db.update_cache([FAKE_DLC])
+def test_get_product_listing_leaves_out_a_dlc_whose_game_is_not_owned():
+    # Own the DLC, not the game: no parent to move in with, so it doesn't
+    # move in at all.
+    library_db.update_cache([FAKE_PRODUCT, FAKE_DLC])
 
-    [dlc] = library_db.get_product_listing()
-
-    assert dlc["slug"] == "fake-game-extra-hats"
+    assert [p["product_id"] for p in library_db.get_product_listing()] == [111]
 
 
 def test_platform_helper_maps_settings_labels_to_gog_os_values():
@@ -796,11 +837,11 @@ def test_a_refresh_while_logged_out_is_a_warning_not_an_error(mock_fetch_owned_i
 
 def test_update_cache_logs_what_it_wrote_and_what_it_skipped(caplog):
     with caplog.at_level("INFO", logger="shrewnut.library_db"):
-        library_db.update_cache([FAKE_PRODUCT, FAKE_PACK])
+        library_db.update_cache([FAKE_PRODUCT, FAKE_PACK, FAKE_DLC])
 
     [message] = [r.getMessage() for r in caplog.records]
     assert "1 products" in message
-    assert "skipped 1" in message  # the pack, turned away at the door
+    assert "skipped 2" in message  # the pack and the orphaned DLC, turned away at the door
 
 
 def test_a_rebuilt_cache_logs_both_versions(caplog):

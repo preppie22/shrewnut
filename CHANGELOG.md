@@ -15,6 +15,7 @@ suffix until the first stable release), not SemVer.
 - The Browse, copy and paste buttons have visible icons on desktops whose icon theme lacks them
 - The AppImage starts on systems without libfuse2, such as a fresh Ubuntu 24.04
 - Picking Light or Dark from the theme menu works on desktops that used to ignore it ([#38](https://github.com/preppie22/shrewnut/issues/38))
+- Refreshing the library removes games you no longer own, and DLCs left over after GOG swapped their game for another edition ([#33](https://github.com/preppie22/shrewnut/issues/33))
 
 ## [2026.10.30-beta] - 2026-10-30
 

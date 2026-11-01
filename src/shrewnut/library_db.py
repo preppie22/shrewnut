@@ -174,13 +174,17 @@ def verify_schema_version() -> bool:
     return True
 
 def update_cache(products: list[dict]) -> None:
-    """Add or update products and their download files in the cache.
+    """Replace the cached products and their download files.
 
-    Only games and DLCs are stored. Packs and any other product types are
-    skipped along with their files. A DLC's response does not name its
-    base game, so ``parent_id`` comes from the games' ``dlcs`` lists, and
-    stays empty for a DLC whose game is not among ``products``. All rows
-    are written in one transaction.
+    ``products`` is the whole library, so anything missing from it is
+    removed from the cache. Only games and DLCs are stored. Packs and any
+    other product types are skipped along with their files. A DLC's
+    response does not name its base game, so ``parent_id`` comes from the
+    games' ``dlcs`` lists. A DLC whose game is not among ``products`` is
+    skipped too, since GOG leaves these behind when it swaps a game for an
+    edition that already includes them. Clearing the old rows and writing
+    the new ones happen in one transaction, so a failed write keeps the
+    old cache.
 
     Args:
         products (list[dict]): Product details from
@@ -204,6 +208,8 @@ def update_cache(products: list[dict]) -> None:
         match game_type:
             case 'dlc':
                 parent_id = dlcs.get(product['id'])
+                if parent_id is None:
+                    continue
             case 'game':
                 parent_id = None
             case _:
@@ -213,36 +219,12 @@ def update_cache(products: list[dict]) -> None:
         download_group_rows.extend(download_values.group_rows)
         download_file_rows.extend(download_values.file_rows)
     with sqlite3.connect(db_path) as conn:
-        conn.executemany("""
-            INSERT INTO product VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(product_id) DO UPDATE SET
-                parent_id=excluded.parent_id,
-                title=excluded.title,
-                slug=excluded.slug,
-                product_type=excluded.product_type,
-                product_url=excluded.product_url,
-                image_uri=excluded.image_uri,
-                windows=excluded.windows,
-                linux=excluded.linux,
-                osx=excluded.osx
-        """, products_rows)
-        conn.executemany("""
-            INSERT INTO download_group VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(product_id, group_id) DO UPDATE SET
-                    name=excluded.name,
-                    category=excluded.category,
-                    content_type=excluded.content_type,
-                    os=excluded.os,
-                    language=excluded.language,
-                    version=excluded.version,
-                    total_size=excluded.total_size
-        """, download_group_rows)
-        conn.executemany("""
-            INSERT INTO download_file VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(product_id, group_id, file_id) DO UPDATE SET
-                    size=excluded.size,
-                    downlink=excluded.downlink
-        """, download_file_rows)
+        conn.execute("DELETE FROM download_file")
+        conn.execute("DELETE FROM download_group")
+        conn.execute("DELETE FROM product")
+        conn.executemany("INSERT OR REPLACE INTO product VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", products_rows)
+        conn.executemany("INSERT OR REPLACE INTO download_group VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", download_group_rows)
+        conn.executemany("INSERT OR REPLACE INTO download_file VALUES (?, ?, ?, ?, ?)", download_file_rows)
     log.info(f"updated {len(products_rows)} products (skipped {len(products) - len(products_rows)}), {len(download_group_rows)} download groups, {len(download_file_rows)} download files")        
 
 def _product_values(product: dict, parent_id: int | None = None) -> tuple:
@@ -321,8 +303,7 @@ def get_product_listing(product_id: tuple[int] = ()) -> list[dict]:
         list[dict]: Entries with ``product_id``, ``parent_id`` (None for
         games), ``title``, ``slug`` and ``download_size``. ``slug`` names
         the product's download folder, so a DLC gets its base game's slug
-        and shares its folder. A DLC whose base game is not in the cache
-        keeps its own. Empty if the cache does not exist.
+        and shares its folder. Empty if the cache does not exist.
     """
     db_path = paths.config_file_path(paths.ConfigFile.DB_CACHE)
     if not db_path.exists():
