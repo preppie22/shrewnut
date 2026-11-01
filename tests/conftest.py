@@ -5,7 +5,8 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
 
@@ -27,6 +28,16 @@ def isolated_download_dir(tmp_path, monkeypatch):
     keep every test that never sets its own path out of the real Downloads folder."""
     from shrewnut import settings
     monkeypatch.setitem(settings.DEFAULT_SETTINGS, "download_path", str(tmp_path / "downloads"))
+
+
+@pytest.fixture(autouse=True)
+def system_theme_afterwards(qapp):
+    """Any test whose MainWindow starts with Light or Dark saved gets a real
+    app-wide palette from AppTheme.change_theme. Hand the system's colors
+    back afterwards, or the next test inherits a theme it never asked for."""
+    yield
+    QApplication.setPalette(QPalette())
+    QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Unknown)
 
 
 @pytest.fixture(scope="session", autouse=True)

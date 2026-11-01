@@ -7,7 +7,6 @@ Attributes:
 
 from importlib import resources
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import (
     QIcon,
     QPainter,
@@ -23,6 +22,8 @@ from PySide6.QtCore import (
     QPointF
 )
 import PySide6.QtSvg # preloads Qt6Svg.dll for Windows targets. No effect on Linux.
+
+from shrewnut.theme import AppTheme
 
 material_dark = {
     'blue': QColor('#56B4E9'),
@@ -57,7 +58,7 @@ def get_icon(icon_file: str) -> QIcon:
     Returns:
         QIcon: The icon for the active color scheme.
     """
-    color_scheme =  QApplication.instance().styleHints().colorScheme()
+    color_scheme =  AppTheme.color_scheme()
     color_folder = 'dark' if color_scheme == Qt.ColorScheme.Dark else 'light'
     icon_path = str(resources.files('shrewnut') / 'icons' / color_folder / icon_file)
     return QIcon(icon_path)
@@ -79,7 +80,7 @@ def status_indicator(color: str = "") -> QIcon:
         QIcon: A 16x16 indicator in the palette of the current color
         scheme.
     """
-    color_scheme = QApplication.instance().styleHints().colorScheme()
+    color_scheme = AppTheme.color_scheme()
     if color_scheme == Qt.ColorScheme.Dark:
         icon_color = material_dark.get(color, material_dark['base'])
     else:

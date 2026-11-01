@@ -22,6 +22,7 @@ from shrewnut.download_window import DownloadState
 from shrewnut import main as shrewnut_main
 from shrewnut.main import MainWindow
 from shrewnut.settings import update_setting
+from shrewnut.theme import AppTheme
 from tests.fakes import gog_product
 
 
@@ -719,6 +720,19 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     }
 
 
+@patch("shrewnut.main.get_icon")
+def test_main_window_recolors_when_the_app_theme_says_so(mock_get_icon):
+    # Not Qt's colorSchemeChanged: inside the Flatpak that one never fires
+    # for a theme picked from the menu.
+    mock_get_icon.return_value = _non_null_icon()
+    window = MainWindow()
+    mock_get_icon.reset_mock()
+
+    window.app_theme.theme_changed.emit()
+
+    assert mock_get_icon.called
+
+
 def test_theme_change_mid_construction_doesnt_trip_over_half_built_widgets(monkeypatch):
     # Regression: on Windows, setColorScheme() fires colorSchemeChanged on the
     # spot, and the refresh used to be wired up before button_layout was even
@@ -727,12 +741,14 @@ def test_theme_change_mid_construction_doesnt_trip_over_half_built_widgets(monke
     # sys.excepthook, so that's where the evidence ends up.
     slot_errors = []
     monkeypatch.setattr("sys.excepthook", lambda _type, value, _tb: slot_errors.append(value))
+    real_change_theme = AppTheme.change_theme
 
-    def set_color_theme_like_windows():
+    def change_theme_like_windows(app_theme):
         hints = QApplication.instance().styleHints()
         hints.colorSchemeChanged.emit(Qt.ColorScheme.Dark)
+        real_change_theme(app_theme)
 
-    with patch("shrewnut.main.SettingsDialog.set_color_theme", side_effect=set_color_theme_like_windows):
+    with patch.object(AppTheme, "change_theme", autospec=True, side_effect=change_theme_like_windows):
         MainWindow()
 
     assert slot_errors == []
@@ -1152,14 +1168,14 @@ def _theme_action(window, label):
 
 
 def test_picking_a_theme_saves_it_before_applying_it():
-    # set_color_theme reads the theme back from disk, so the order matters.
+    # change_theme reads the theme back from disk, so the order matters.
     # Apply first and you get last time's theme, a very confident one-click lag.
     from shrewnut import settings
     window = MainWindow()
     applied_with = []
 
-    with patch("shrewnut.main.SettingsDialog.set_color_theme",
-               side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
+    with patch.object(window.app_theme, "change_theme",
+                      side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
         _theme_action(window, "Light").trigger()
 
     assert applied_with == ["Light"]
@@ -1197,7 +1213,7 @@ def test_theme_stays_changeable_while_settings_is_locked():
     window = MainWindow()
     window.download_window.current_state = DownloadState.RUNNING
 
-    with patch("shrewnut.main.SettingsDialog.set_color_theme"):
+    with patch.object(window.app_theme, "change_theme"):
         _theme_action(window, "Light").trigger()
 
     assert window.settings_button.isEnabled() is False
@@ -1804,7 +1820,7 @@ def _refuse_to_replace(*args, **kwargs):
 
 
 def test_a_theme_that_cannot_be_saved_puts_the_menu_back(monkeypatch):
-    # set_color_theme reads the disk, so a failed save means no new theme.
+    # change_theme reads the disk, so a failed save means no new theme.
     # Leave Dark ticked anyway and the menu argues with the screen forever.
     from shrewnut import settings
     update_setting("theme", "Light")
@@ -1814,8 +1830,8 @@ def test_a_theme_that_cannot_be_saved_puts_the_menu_back(monkeypatch):
     monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
     applied_with = []
 
-    with patch("shrewnut.main.SettingsDialog.set_color_theme",
-               side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
+    with patch.object(window.app_theme, "change_theme",
+                      side_effect=lambda: applied_with.append(settings.read_setting("theme"))):
         _theme_action(window, "Dark").trigger()
 
     assert [a.text() for a in window.theme_toggle_group.actions() if a.isChecked()] == ["Light"]
@@ -1831,7 +1847,7 @@ def test_a_theme_that_saves_fine_raises_no_alarm(monkeypatch):
     message_box = MagicMock()
     monkeypatch.setattr(shrewnut_main, "QMessageBox", message_box)
 
-    with patch("shrewnut.main.SettingsDialog.set_color_theme"):
+    with patch.object(window.app_theme, "change_theme"):
         _theme_action(window, "Dark").trigger()
 
     message_box.assert_not_called()

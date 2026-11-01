@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage
 suffix until the first stable release), not SemVer.
 
+## [Unreleased]
+
+### Fixed
+- The AppImage starts on systems without libfuse2, such as a fresh Ubuntu 24.04
+- Picking Light or Dark from the theme menu works on desktops that used to ignore it ([#38](https://github.com/preppie22/shrewnut/issues/38))
+
 ## [2026.10.30-beta] - 2026-10-30
 
 ### Added

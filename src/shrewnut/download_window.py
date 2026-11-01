@@ -12,7 +12,6 @@ from collections import deque
 import time
 
 from PySide6.QtWidgets import (
-    QApplication,
     QDockWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -46,6 +45,7 @@ from PySide6.QtGui import (
 from shrewnut.icon_utils import get_icon, status_indicator
 from shrewnut.download_queue import DownloadScheduler, ConnectionCheck
 from shrewnut.settings import read_setting
+from shrewnut.theme import AppTheme
 
 import logging
 log = logging.getLogger(__name__)
@@ -105,8 +105,8 @@ class TitleDelegate(QStyledItemDelegate):
         """
         progress = index.sibling(index.row(), Column.TITLE).data(UserRole.PROGRESS_ROLE) or 0
         fill_width = int(option.rect.width() * progress / 100)
-        scheme = QApplication.instance().styleHints().colorScheme()
-        fill_color = LIGHT_FILL_COLOR if scheme == Qt.ColorScheme.Light else DARK_FILL_COLOR
+        scheme = AppTheme.color_scheme()
+        fill_color = DARK_FILL_COLOR if scheme == Qt.ColorScheme.Dark else LIGHT_FILL_COLOR
         painter.fillRect(
             QRect(option.rect.x(), option.rect.y() + 4 , fill_width, option.rect.height() - 8),
             fill_color
@@ -178,14 +178,16 @@ class DownloadWindow(QDockWidget):
     game_succeeded = Signal('qlonglong')
     busy_changed = Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, app_theme: AppTheme, parent=None):
         """Build the queue table, controls and scheduler.
 
         Args:
+            app_theme (AppTheme): The theme whose ``theme_changed`` reloads
+                the button icons.
             parent (QWidget): Optional parent widget.
         """
         super().__init__(parent)
-
+        self.app_theme = app_theme
         self.__current_state = DownloadState.IDLE
         self.__priority_counter = 0
         self.scheduler = None
@@ -285,7 +287,7 @@ class DownloadWindow(QDockWidget):
         self.window_layout.addWidget(self.dialog_buttons)
 
         self.setWidget(self.main_widget)
-        QApplication.instance().styleHints().colorSchemeChanged.connect(self._color_scheme_refresh)
+        self.app_theme.theme_changed.connect(self._color_scheme_refresh)
         self._color_scheme_refresh()
         self._update_progress_bar()
 

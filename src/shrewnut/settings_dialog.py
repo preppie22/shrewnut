@@ -154,17 +154,6 @@ class SettingsDialog(QDialog):
         self.on_concurrency_changed(self.download_concurrency_edit.value())
         self.load_settings()
 
-    @staticmethod
-    def set_color_theme() -> None:
-        """Apply the saved theme setting to the application.
-
-        The ``'System'`` theme follows the operating system's color scheme.
-        """
-        theme = settings.read_setting('theme')
-        if theme == 'System': QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Unknown)
-        elif theme == 'Light': QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Light)
-        elif theme == 'Dark': QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Dark)
-
     def load_settings(self, values: dict = None):
         """Fill the form fields.
 

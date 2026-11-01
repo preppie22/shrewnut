@@ -67,6 +67,7 @@ from shrewnut.download_window import DownloadWindow, UserRole, DownloadState
 from shrewnut.icon_utils import get_icon, get_logo, status_indicator
 from shrewnut.paths import LogFile, log_file_path, migrate_config
 from shrewnut.log_setup import setup_logging, setup_download_log
+from shrewnut.theme import AppTheme
 
 log = logging.getLogger(__name__)
 
@@ -188,7 +189,8 @@ class MainWindow(QMainWindow):
         # Main Window Setup
         self.setWindowTitle("Shrewnut")
         self.resize(1024, 768)
-        self.download_window = DownloadWindow(self)
+        self.app_theme = AppTheme(self)
+        self.download_window = DownloadWindow(self.app_theme, self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.download_window)
         self.download_window.game_succeeded.connect(self._on_game_succeeded)
 
@@ -271,7 +273,7 @@ class MainWindow(QMainWindow):
         self.theme_set_button.setProperty('iconFile', 'theme_mode.svg')
         self.main_toolbar.addAction(self.theme_set_button)
         self.main_toolbar.widgetForAction(self.theme_set_button).setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.theme_toggle_group.triggered.connect(self._on_theme_changed)
+        self.theme_toggle_group.triggered.connect(self._on_theme_selected)
 
         # Set Theme Buttons
         current_theme = read_setting('theme')
@@ -353,9 +355,8 @@ class MainWindow(QMainWindow):
         
         # Init Stuff
         self._update_login_status()
-        QApplication.instance().styleHints().colorSchemeChanged.connect(self._color_scheme_refresh)
-        SettingsDialog.set_color_theme()
-        self._color_scheme_refresh()
+        self.app_theme.theme_changed.connect(self._color_scheme_refresh)
+        self.app_theme.change_theme()
         self._on_games_loaded(library_db.get_product_listing())
 
     def _threads_busy(self) -> bool:
@@ -917,10 +918,10 @@ class MainWindow(QMainWindow):
         self.settings_button.setToolTip("Can't change settings while downloads are running or paused" if is_busy else
                                          f"Settings ({self.settings_button.shortcut().toString(QKeySequence.SequenceFormat.NativeText)})")
 
-    def _on_theme_changed(self, action: QAction):
+    def _on_theme_selected(self, action: QAction):
         """Save and apply the theme picked from the toolbar menu.
 
-        The theme is saved first, since ``SettingsDialog.set_color_theme``
+        The theme is saved first, since ``AppTheme.change_theme``
         reads it back from the settings file. If the save fails, the theme
         stays as it was, the menu ticks the saved theme again and a warning
         says so.
@@ -946,7 +947,7 @@ class MainWindow(QMainWindow):
                 detailedText = f"Log: {str(log_file_path(LogFile.APP_LOG))}",
                 parent=self
             ).exec()
-        SettingsDialog.set_color_theme()
+        self.app_theme.change_theme()
 
     def _check_fetched(self, product_listing: list[dict]) -> dict:
         """Check which games have every selected file downloaded.

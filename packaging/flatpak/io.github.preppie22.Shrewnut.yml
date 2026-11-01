@@ -11,7 +11,6 @@ finish-args:
   - --device=dri
   - --filesystem=xdg-download
   - --filesystem=xdg-config/kdeglobals:ro
-  - --env=QT_QPA_PLATFORMTHEME=kde
 modules:
   - name: shrewnut
     buildsystem: simple
@@ -30,5 +29,3 @@ modules:
           - .git
           - build
           - .flatpak-builder
-
-
