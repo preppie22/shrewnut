@@ -1,52 +1,67 @@
-from pathlib import Path
+from importlib import resources
 from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QApplication
 
 from shrewnut.icon_utils import get_icon, material_dark, material_light, status_indicator
 
 
-@patch("shrewnut.icon_utils.AppTheme")
-def test_get_icon_returns_a_non_null_icon_for_light_scheme(mock_theme_cls):
-    mock_theme_cls.color_scheme.return_value = Qt.ColorScheme.Light
+ICONS_DIR = resources.files("shrewnut") / "icons"
+THEMED_ICONS = sorted(f.name for f in ICONS_DIR.iterdir() if f.name.endswith(".svg") and f.name != "shrewnut.svg")
 
+
+def painted_colors(icon):
+    image = icon.pixmap(QSize(32, 32)).toImage()
+    # Opaque pixels only. The antialiased edges are a blend with
+    # transparency and would vote for colors nobody picked.
+    return {
+        image.pixelColor(x, y).name()
+        for x in range(image.width()) for y in range(image.height())
+        if image.pixelColor(x, y).alpha() == 255
+    }
+
+
+def test_get_icon_returns_a_non_null_icon():
     icon = get_icon("download.svg")
 
     assert not icon.isNull()
 
 
-@patch("shrewnut.icon_utils.AppTheme")
-def test_get_icon_returns_a_non_null_icon_for_dark_scheme(mock_theme_cls):
-    mock_theme_cls.color_scheme.return_value = Qt.ColorScheme.Dark
+@pytest.mark.parametrize("text_color", ["#ff00ff", "#00ff00"])
+def test_get_icon_paints_in_the_palettes_text_color(text_color):
+    # Two colors no theme would ever ship, so a pass can't be a lucky match
+    # with whatever the test machine's palette happens to be.
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(text_color))
+    QApplication.setPalette(palette)
 
-    icon = get_icon("download.svg")
+    colors = painted_colors(get_icon("download.svg"))
 
-    assert not icon.isNull()
-
-
-@patch("shrewnut.icon_utils.QIcon")
-@patch("shrewnut.icon_utils.AppTheme")
-def test_get_icon_loads_from_the_dark_folder_for_dark_scheme(mock_theme_cls, mock_qicon_cls):
-    mock_theme_cls.color_scheme.return_value = Qt.ColorScheme.Dark
-
-    get_icon("download.svg")
-
-    used_path = Path(mock_qicon_cls.call_args.args[0])
-    assert "dark" in used_path.parts
-    assert "light" not in used_path.parts
+    assert colors == {text_color}
 
 
-@patch("shrewnut.icon_utils.QIcon")
-@patch("shrewnut.icon_utils.AppTheme")
-def test_get_icon_loads_from_the_light_folder_for_light_scheme(mock_theme_cls, mock_qicon_cls):
-    mock_theme_cls.color_scheme.return_value = Qt.ColorScheme.Light
+def test_get_icon_follows_a_palette_change_on_the_next_call():
+    # Icons reload on theme_changed, after change_theme swapped the palette.
+    # Nothing may be cached in between, or the reload hands out yesterday's ink.
+    for text_color in ("#ff00ff", "#00ff00"):
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(text_color))
+        QApplication.setPalette(palette)
 
-    get_icon("download.svg")
+        assert painted_colors(get_icon("download.svg")) == {text_color}
 
-    used_path = Path(mock_qicon_cls.call_args.args[0])
-    assert "light" in used_path.parts
-    assert "dark" not in used_path.parts
+
+@pytest.mark.parametrize("icon_file", THEMED_ICONS)
+def test_every_bundled_icon_takes_its_color_from_the_theme(icon_file):
+    # An icon pasted in with a hardcoded fill skips the recoloring and
+    # turns up black on black in dark mode. currentColor is the only hook.
+    svg_text = (ICONS_DIR / icon_file).read_text()
+
+    assert "currentColor" in svg_text
+    assert not painted_colors(get_icon(icon_file)) - {QApplication.palette().color(QPalette.ColorRole.WindowText).name()}
 
 
 # --- status_indicator ---

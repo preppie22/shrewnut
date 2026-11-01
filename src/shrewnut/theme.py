@@ -133,6 +133,16 @@ class AppTheme(QObject):
             case _:
                 return QApplication.instance().styleHints().colorScheme()
 
+    @staticmethod
+    def palette():
+        """Return the application palette.
+
+        Returns:
+            QPalette: Shrewnut's own palette for ``'Light'`` or ``'Dark'``,
+            the desktop's for ``'System'``.
+        """
+        return QApplication.palette()
+
     def _on_theme_change(self):
         """Pass a desktop scheme change on, if the theme follows the desktop."""
         if read_setting('theme') == "System":

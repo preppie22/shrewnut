@@ -13,15 +13,17 @@ from PySide6.QtGui import (
     QColor,
     QPixmap,
     QPen,
-    QPolygonF
+    QPolygonF,
+    QPalette,
 )
 from PySide6.QtCore import (
     Qt,
     QSize,
     QRectF,
-    QPointF
+    QPointF,
 )
 import PySide6.QtSvg # preloads Qt6Svg.dll for Windows targets. No effect on Linux.
+from PySide6.QtSvg import QSvgRenderer
 
 from shrewnut.theme import AppTheme
 
@@ -49,19 +51,31 @@ def get_logo() -> QIcon:
     return QIcon(str(resources.files('shrewnut') / 'icons' / 'shrewnut.svg'))
 
 def get_icon(icon_file: str) -> QIcon:
-    """Load an icon matching the current color scheme.
+    """Load a bundled icon in the current palette's text color.
+
+    Every ``currentColor`` in the SVG is replaced with the application
+    palette's ``WindowText`` color, and the result is drawn into a 64x64
+    pixmap that the icon scales down from.
 
     Args:
-        icon_file (str): File name of the icon inside ``icons/dark`` or
-            ``icons/light``.
+        icon_file (str): File name of the icon inside ``icons``.
 
     Returns:
-        QIcon: The icon for the active color scheme.
+        QIcon: The icon, colored for the current palette.
     """
-    color_scheme =  AppTheme.color_scheme()
-    color_folder = 'dark' if color_scheme == Qt.ColorScheme.Dark else 'light'
-    icon_path = str(resources.files('shrewnut') / 'icons' / color_folder / icon_file)
-    return QIcon(icon_path)
+    icon_color = AppTheme.palette().color(QPalette.ColorRole.WindowText).name()
+    
+    svg_text = (resources.files('shrewnut') / 'icons' / icon_file).read_text()
+    svg_text = svg_text.replace("currentColor", icon_color)
+    
+    icon = QPixmap(QSize(64,64))
+    icon.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(icon)
+    icon_svg = QSvgRenderer(svg_text.encode())
+    icon_svg.render(painter)
+    painter.end()
+    
+    return QIcon(icon)
 
 def status_indicator(color: str = "") -> QIcon:
     """Draw a status indicator whose shape and color both show the state.

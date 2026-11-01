@@ -22,12 +22,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
-    QIcon,
     QGuiApplication,
     QDesktopServices
 )
 
 from shrewnut import gog_auth
+from shrewnut.icon_utils import get_icon
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class ExternalLoginDialog(QDialog):
         self.step1_url = QLineEdit(readOnly=True)
         self.step1_url.setText(gog_auth.build_auth_uri())
         self.step1_url.setCursorPosition(0)
-        self.copy_action = self.step1_url.addAction(QIcon.fromTheme('edit-copy'), QLineEdit.ActionPosition.TrailingPosition)
+        self.copy_action = self.step1_url.addAction(get_icon("copy.svg"), QLineEdit.ActionPosition.TrailingPosition)
         self.copy_action.triggered.connect(
             lambda: QGuiApplication.clipboard().setText(self.step1_url.text())
         )
@@ -89,7 +89,7 @@ class ExternalLoginDialog(QDialog):
         self.step2_layout = QVBoxLayout()
         self.step2.setLayout(self.step2_layout)
         self.step2_url = QLineEdit()
-        self.paste_action = self.step2_url.addAction(QIcon.fromTheme('edit-paste'), QLineEdit.ActionPosition.TrailingPosition)
+        self.paste_action = self.step2_url.addAction(get_icon("paste.svg"), QLineEdit.ActionPosition.TrailingPosition)
         self.paste_action.triggered.connect(
             lambda: self.step2_url.setText(QGuiApplication.clipboard().text())
         )

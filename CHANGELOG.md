@@ -8,7 +8,11 @@ suffix until the first stable release), not SemVer.
 
 ## [Unreleased]
 
+### Changed
+- New icons throughout, including the theme and login menus and the Settings buttons
+
 ### Fixed
+- The Browse, copy and paste buttons have visible icons on desktops whose icon theme lacks them
 - The AppImage starts on systems without libfuse2, such as a fresh Ubuntu 24.04
 - Picking Light or Dark from the theme menu works on desktops that used to ignore it ([#38](https://github.com/preppie22/shrewnut/issues/38))
 

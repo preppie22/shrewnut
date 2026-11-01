@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QSpacerItem,
     QSizePolicy,
-    QStyle,
     QListWidget,
     QListWidgetItem,
 )
@@ -32,11 +31,11 @@ from PySide6.QtGui import (
     QPalette,
     QColor,
     QAction,
-    QIcon
 )
 from shrewnut import settings
 from shrewnut import library_db
 from shrewnut.paths import LogFile, log_file_path
+from shrewnut.icon_utils import get_icon
 
 import logging
 log = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ class SettingsDialog(QDialog):
 
         # Download Path
         self.download_edit_path = QLineEdit()
-        browse_action = QAction(QIcon.fromTheme('folder-open'), "Browse", self.download_edit_path)
+        browse_action = QAction(get_icon("browse.svg"), "Browse", self.download_edit_path)
         browse_action.triggered.connect(self.onclick_browse_download_path)
         self.download_edit_path.addAction(browse_action, QLineEdit.ActionPosition.TrailingPosition)
         self.window_layout.addRow("Download Directory", self.download_edit_path)
@@ -145,8 +144,11 @@ class SettingsDialog(QDialog):
             QDialogButtonBox.StandardButton.RestoreDefaults|
             QDialogButtonBox.StandardButton.Close
         )
+        self.settings_form_buttons.button(QDialogButtonBox.StandardButton.Save).setIcon(get_icon("save.svg"))
+        self.settings_form_buttons.button(QDialogButtonBox.StandardButton.RestoreDefaults).setIcon(get_icon("eraser.svg"))
+        self.settings_form_buttons.button(QDialogButtonBox.StandardButton.Close).setIcon(get_icon("x.svg"))
         discard_button = self.settings_form_buttons.addButton("Discard Changes", QDialogButtonBox.ButtonRole.DestructiveRole)
-        discard_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogDiscardButton))
+        discard_button.setIcon(get_icon("restore.svg"))
         self.settings_form_buttons.clicked.connect(self.settings_buttons_handler)
         self.window_layout.addWidget(self.settings_form_buttons)
 

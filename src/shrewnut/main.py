@@ -211,11 +211,12 @@ class MainWindow(QMainWindow):
         
         # Login
         self.login_menu = QMenu(self)
-        self.login_internal_action = QAction("Log in through Shrewnut", self.login_menu)
+        self.login_internal_action = QAction("Log in through Shrewnut", self.login_menu, icon=get_logo())
         self.login_internal_action.triggered.connect(self.open_login_window)
         self.login_menu.addAction(self.login_internal_action)
 
-        self.login_external_action = QAction("Log in with your browser", self.login_menu)
+        self.login_external_action = QAction("Log in with your browser", self.login_menu, icon=get_icon("external_browser.svg"))
+        self.login_external_action.setProperty('iconFile', "external_browser.svg")
         self.login_external_action.triggered.connect(self.open_external_login)
         self.login_menu.addAction(self.login_external_action)
 
@@ -263,9 +264,9 @@ class MainWindow(QMainWindow):
 
         # Theme
         self.theme_toggle_group = QActionGroup(self)
-        self.theme_toggle_group.addAction(QAction("Dark", self.theme_toggle_group, checkable=True))
-        self.theme_toggle_group.addAction(QAction("Light", self.theme_toggle_group, checkable=True))
-        self.theme_toggle_group.addAction(QAction("System", self.theme_toggle_group, checkable=True))
+        self.theme_toggle_group.addAction(QAction("Dark", self.theme_toggle_group, checkable=True, icon=get_icon("moon.svg"))).setProperty('iconFile', "moon.svg")
+        self.theme_toggle_group.addAction(QAction("Light", self.theme_toggle_group, checkable=True, icon=get_icon("sun.svg"))).setProperty('iconFile', "sun.svg")
+        self.theme_toggle_group.addAction(QAction("System", self.theme_toggle_group, checkable=True, icon=get_icon("theme_mode.svg"))).setProperty('iconFile', "theme_mode.svg")
         self.theme_toggle_menu = QMenu(self)
         self.theme_toggle_menu.addActions(self.theme_toggle_group.actions())
         self.theme_set_button = QAction("Theme", self, icon=get_icon('theme_mode.svg'))
@@ -283,8 +284,8 @@ class MainWindow(QMainWindow):
                 break
 
         # About
-        self.about_button = QAction("About", self, icon=get_icon('question.svg'))
-        self.about_button.setProperty('iconFile', 'question.svg')
+        self.about_button = QAction("About", self, icon=get_icon('info.svg'))
+        self.about_button.setProperty('iconFile', 'info.svg')
         self.about_button.triggered.connect(self.open_about_page)
         self.main_toolbar.addAction(self.about_button)
 
@@ -462,14 +463,14 @@ class MainWindow(QMainWindow):
                 QApplication.setPalette(base_palette)
             else:
                 QApplication.setPalette(QPalette())
-        for button in self.main_toolbar.actions():
-            icon_file = button.property('iconFile')
+        for item in (self.main_toolbar.actions() + 
+                     self.login_menu.actions() + 
+                     self.button_layout.buttons() +
+                     self.theme_toggle_group.actions()
+                    ):
+            icon_file = item.property('iconFile')
             if icon_file:
-                button.setIcon(get_icon(icon_file))
-        for button in self.button_layout.buttons():
-            icon_file = button.property('iconFile')
-            if icon_file:
-                button.setIcon(get_icon(icon_file))
+                item.setIcon(get_icon(icon_file))
     
     def _update_login_status(self):
         """Update the login indicator in the status bar.

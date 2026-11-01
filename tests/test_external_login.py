@@ -54,6 +54,14 @@ def test_open_in_browser_opens_login_page(dialog, browser):
     browser.assert_called_once_with(QUrl(gog_auth.build_auth_uri()))
 
 
+def test_copy_and_paste_icons_are_actually_there(dialog):
+    # Both buttons are nothing but an icon. Borrowed from a desktop theme
+    # that didn't have them, they were invisible, and nobody goes clicking
+    # around an empty corner of a text box on the off chance.
+    assert not dialog.copy_action.icon().isNull()
+    assert not dialog.paste_action.icon().isNull()
+
+
 def test_copy_icon_copies_login_address(dialog):
     QGuiApplication.clipboard().setText("something else entirely")
 

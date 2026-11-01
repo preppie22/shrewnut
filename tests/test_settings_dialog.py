@@ -205,6 +205,19 @@ def test_restore_defaults_unchecks_bonus_content_when_default_is_false():
     assert dialog.download_categories_check["bonus_content"].isChecked() == settings.DEFAULT_SETTINGS["bonus_content"]
 
 
+def test_browse_and_every_dialog_button_bring_their_own_icon():
+    # These used to come from the desktop's icon theme, and a desktop without
+    # one (or a Flatpak that can't see it) handed back nothing. A Browse
+    # button you can't see is a download folder you can't change.
+    dialog = SettingsDialog()
+
+    browse_actions = dialog.download_edit_path.actions()
+    assert browse_actions
+    assert all(not action.icon().isNull() for action in browse_actions)
+    assert len(dialog.settings_form_buttons.buttons()) == 4
+    assert all(not button.icon().isNull() for button in dialog.settings_form_buttons.buttons())
+
+
 @patch("shrewnut.settings_dialog.QFileDialog.getExistingDirectory")
 def test_browse_updates_download_path_when_a_folder_is_chosen(mock_get_dir):
     mock_get_dir.return_value = "/chosen/folder"

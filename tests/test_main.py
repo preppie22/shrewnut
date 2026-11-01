@@ -705,8 +705,10 @@ def test_onclick_queue_download_does_nothing_without_a_selection():
 def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_own_icon_file(mock_get_icon):
     # The Queue Selection button got an icon too, so it gets a seat on the
     # theme-change bus alongside the toolbar crew. The About button hopped
-    # on later, question mark and all. Then the theme picker itself, which
-    # would be embarrassing to leave in the wrong colors.
+    # on later, traded its question mark for an "i" at some point. Then the
+    # theme picker itself, which would be embarrassing to leave in the wrong
+    # colors, and the menus hanging off Login and Theme. The Shrewnut logo
+    # in the Login menu stays home: an acorn looks the same in any light.
     mock_get_icon.return_value = _non_null_icon()
     window = MainWindow()
     mock_get_icon.reset_mock()
@@ -716,7 +718,7 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     called_files = {call.args[0] for call in mock_get_icon.call_args_list}
     assert called_files == {
         "login.svg", "logout.svg", "fetch.svg", "download_folder.svg", "settings.svg", "theme_mode.svg",
-        "question.svg", "enqueue.svg",
+        "info.svg", "enqueue.svg", "external_browser.svg", "moon.svg", "sun.svg",
     }
 
 
