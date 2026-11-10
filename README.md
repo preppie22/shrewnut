@@ -12,7 +12,6 @@ Shrewnut<br>
 <p align="center">
   <a href="https://github.com/preppie22/shrewnut/releases/latest"><img src="https://img.shields.io/github/v/release/preppie22/shrewnut?include_prereleases" alt="Latest release"/></a>
   <a href="https://github.com/preppie22/shrewnut/releases"><img src="https://img.shields.io/github/downloads/preppie22/shrewnut/total" alt="Total downloads"/></a>
-  <a href="#features"><img src="https://img.shields.io/badge/status-beta-orange" alt="Status: beta"/></a>
   <a href="https://github.com/preppie22/shrewnut/commits/dev"><img src="https://img.shields.io/github/last-commit/preppie22/shrewnut/dev" alt="Last commit on dev"/></a>
   <a href="#download"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey" alt="Platforms: Linux | Windows"/></a>
   <a href="https://doc.qt.io/qtforpython-6/"><img src="https://img.shields.io/badge/built%20with-Qt%20(PySide6)-41CD52?logo=qt&logoColor=white" alt="Built with Qt (PySide6)"/></a>
@@ -43,21 +42,17 @@ Basically, I wanted to build a tool that can batch download installers/extras fo
 
 ## Features
 
-> [!NOTE]
-> This application is currently in **beta**. All features are tested and working but there may be bugs.
-
 I'd appreciate your feedback on bugs, features, or improvements in the [issues section](https://github.com/preppie22/shrewnut/issues).
 
-- Queue multiple games and DLCs
-- Add games to the queue at any time
+- Add multiple games and DLCs to the queue at any time
 - Downloads multiple games concurrently
 - Download only what you want: Installers, Bonus Content (extras), Patches
-- Support for downloading content in different languages
+- Supports downloading content in specific languages
 - Pause downloads when your internet drops without losing progress
 - Pause downloads when disk is full to allow clearing space
 - Prevents files from being re-downloaded if they are already on disk
 - Dark mode and light mode support
-- Auto-update for Linux users using GearLever
+- Auto-update for AppImage using GearLever
 - Auto-resume when internet reconnects after a drop
 - Search bar lookup for large libraries
 
@@ -66,7 +61,8 @@ Planned:
 - Pick individual files to download for each game ([#36](https://github.com/preppie22/shrewnut/issues/36))
 - Non-intrusive update notification ([#37](https://github.com/preppie22/shrewnut/issues/37))
 
-The app is fully functional at this point. Fair warning though: don't set the download concurrency too high. I don't know how lenient GOG is with their API being hammered. Don't say I didn't warn you if your account gets banned.
+> [!WARNING]
+> Don't set the download concurrency too high. I don't know how lenient GOG is with their API being hammered. Don't say I didn't warn you if your account gets banned.
 
 ## Download
 
@@ -74,7 +70,7 @@ The app is fully functional at this point. Fair warning though: don't set the do
 
 | | Linux | Windows |
 | :-: | :-: | :-: |
-| [![GitHub Release](https://img.shields.io/github/v/release/preppie22/shrewnut?style=for-the-badge&logo=github)](https://github.com/preppie22/shrewnut/releases/latest) |  [![Linux Download](https://img.shields.io/badge/AppImage-Download-green?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64.AppImage) | [![Windows Download](https://img.shields.io/badge/ZIP-Download-blue?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tISBGb250IEF3ZXNvbWUgRnJlZSA2LjcuMiBieSBAZm9udGF3ZXNvbWUgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbSBMaWNlbnNlIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20vbGljZW5zZS9mcmVlIChJY29uczogQ0MgQlkgNC4wLCBGb250czogU0lMIE9GTCAxLjEsIENvZGU6IE1JVCBMaWNlbnNlKSBDb3B5cmlnaHQgMjAyNCBGb250aWNvbnMsIEluYy4gLS0%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgOTMuN2wxODMuNi0yNS4zdjE3Ny40SDBWOTMuN3ptMCAzMjQuNmwxODMuNiAyNS4zVjI2OC40SDB2MTQ5Ljl6bTIwMy44IDI4TDQ0OCA0ODBWMjY4LjRIMjAzLjh2MTc3Ljl6bTAtMzgwLjZ2MTgwLjFINDQ4VjMyTDIwMy44IDY1Ljd6Ii8%2BPC9zdmc%2B)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64-windows.zip) | 
+| [![GitHub Release](https://img.shields.io/github/v/release/preppie22/shrewnut?style=for-the-badge&logo=github)](https://github.com/preppie22/shrewnut/releases/latest) |  [![Linux Download](https://img.shields.io/badge/AppImage-Download-green?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64.AppImage) | [![Windows Download](https://img.shields.io/badge/ZIP-Download-blue?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tISBGb250IEF3ZXNvbWUgRnJlZSA2LjcuMiBieSBAZm9udGF3ZXNvbWUgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbSBMaWNlbnNlIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20vbGljZW5zZS9mcmVlIChJY29uczogQ0MgQlkgNC4wLCBGb250czogU0lMIE9GTCAxLjEsIENvZGU6IE1JVCBMaWNlbnNlKSBDb3B5cmlnaHQgMjAyNCBGb250aWNvbnMsIEluYy4gLS0%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgOTMuN2wxODMuNi0yNS4zdjE3Ny40SDBWOTMuN3ptMCAzMjQuNmwxODMuNiAyNS4zVjI2OC40SDB2MTQ5Ljl6bTIwMy44IDI4TDQ0OCA0ODBWMjY4LjRIMjAzLjh2MTc3Ljl6bTAtMzgwLjZ2MTgwLjFINDQ4VjMyTDIwMy44IDY1Ljd6Ii8%2BPC9zdmc%2B)](https://github.com/preppie22/shrewnut/releases/latest/download/shrewnut-x86_64-windows.zip) |
 
 </div>
 

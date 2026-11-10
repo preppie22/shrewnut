@@ -6,9 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage
 suffix until the first stable release), not SemVer.
 
-## [Unreleased]
+## [2026.11.10] - 2026-11-10
 
 ### Changed
+- Shrewnut is out of beta. This is the first stable release
 - New icons throughout, including the theme and login menus and the Settings buttons
 
 ### Fixed
