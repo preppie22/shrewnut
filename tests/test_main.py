@@ -6,13 +6,12 @@ import sys
 import threading
 import time
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import humanize
 import pytest
 from PySide6.QtCore import QPoint, QProcess, Qt, QTimer, qVersion
-from PySide6.QtGui import QColor, QIcon, QKeySequence, QPalette, QPixmap, QTextDocument
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QTextDocument
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
 
@@ -2218,71 +2217,3 @@ def test_quitting_waits_for_a_running_store_lookup(mock_open_url):
     # Deliver the answer now, while openUrl is still a fake. Left in the
     # queue, it pops up in whichever later test pumps events first.
     QApplication.processEvents()
-
-
-# --- Windows dark mode row stripes ---
-
-NAVY = "#001a68"  # what Qt 6.12 hands Fusion as AlternateBase in Windows dark mode
-
-
-@pytest.fixture
-def on_windows(monkeypatch):
-    # Pretend to be Windows for _color_scheme_refresh only, and put the app
-    # palette back afterwards so the stripes don't haunt the next test.
-    monkeypatch.setattr(shrewnut_main, "sys", SimpleNamespace(platform="win32", argv=sys.argv))
-    yield
-    QApplication.setPalette(QPalette())
-
-
-def _in_scheme(window, scheme):
-    # Offscreen Qt ignores setColorScheme, so tell the refresh what Windows
-    # would have said.
-    hints = MagicMock()
-    hints.colorScheme.return_value = scheme
-    with patch.object(shrewnut_main.QApplication, "styleHints", return_value=hints):
-        window._color_scheme_refresh()
-    QApplication.processEvents()  # widgets hear about a new app palette by event
-
-
-def test_windows_dark_mode_gets_grey_stripes_instead_of_navy(on_windows):
-    window = MainWindow()
-
-    _in_scheme(window, Qt.ColorScheme.Dark)
-
-    stripes = window.games_list.palette().color(QPalette.ColorRole.AlternateBase)
-    assert stripes.name() == "#383838"
-
-
-def test_windows_dark_mode_only_touches_the_stripes(on_windows):
-    # Everything else still comes from Windows. Overriding the whole palette
-    # would freeze it, and the next theme switch would only half happen.
-    window = MainWindow()
-
-    _in_scheme(window, Qt.ColorScheme.Dark)
-
-    overridden = [role.name for role in QPalette.ColorRole if role != QPalette.ColorRole.NColorRoles
-                  and any(QApplication.palette().isBrushSet(group, role) for group in
-                          (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive, QPalette.ColorGroup.Disabled))]
-    assert overridden == ["AlternateBase"]
-
-
-def test_switching_back_to_light_hands_the_stripes_back_to_windows(on_windows):
-    # The override outlives a theme change, so without the reset, light mode
-    # would wear #383838 stripes on white like a zebra in mourning.
-    window = MainWindow()
-    _in_scheme(window, Qt.ColorScheme.Dark)
-
-    _in_scheme(window, Qt.ColorScheme.Light)
-
-    assert QApplication.palette().resolveMask() == 0
-    assert window.games_list.palette().color(QPalette.ColorRole.AlternateBase).name() != "#383838"
-
-
-def test_other_platforms_keep_their_own_stripes(monkeypatch):
-    # Linux takes its colours from KDE or GNOME, which get this right.
-    monkeypatch.setattr(shrewnut_main, "sys", SimpleNamespace(platform="linux", argv=sys.argv))
-    window = MainWindow()
-
-    _in_scheme(window, Qt.ColorScheme.Dark)
-
-    assert QApplication.palette().resolveMask() == 0

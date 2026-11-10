@@ -39,8 +39,6 @@ from PySide6.QtGui import (
     QKeySequence,
     QCloseEvent,
     QShortcut,
-    QPalette,
-    QColor,
     QDesktopServices,
 )
 from PySide6.QtCore import (
@@ -455,14 +453,6 @@ class MainWindow(QMainWindow):
 
     def _color_scheme_refresh(self) -> None:
         """Reload toolbar and button icons for the current color scheme."""
-        if sys.platform == "win32":
-            scheme = QApplication.styleHints().colorScheme()
-            if scheme == Qt.ColorScheme.Dark:
-                base_palette = QPalette()
-                base_palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#383838"))
-                QApplication.setPalette(base_palette)
-            else:
-                QApplication.setPalette(QPalette())
         for item in (self.main_toolbar.actions() + 
                      self.login_menu.actions() + 
                      self.button_layout.buttons() +

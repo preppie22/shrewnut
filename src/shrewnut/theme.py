@@ -1,8 +1,10 @@
-"""The application's light or dark theme, applied the same way on every platform.
+"""The application's light or dark theme.
 
 Qt's own ``setColorScheme`` request is ignored by some platform themes (the
-Flatpak's portal theme, Qt's ``generic`` one), so a picked Light or Dark
-theme also sets Shrewnut's own palette.
+Flatpak's portal theme, Qt's ``generic`` one), so off Windows a picked Light
+or Dark theme also sets Shrewnut's own palette. Windows follows the request,
+so there every theme uses the desktop's palette, except for grey row stripes
+in dark mode, where Qt's default ones are navy.
 
 Attributes:
     LIGHT_COLORS (dict[QPalette.ColorRole, QColor]): Light palette, every
@@ -14,6 +16,7 @@ Attributes:
     DARK_DISABLED_COLORS (dict[QPalette.ColorRole, QColor]): Dark palette
         colors that differ for disabled widgets.
 """
+import sys
 
 from PySide6.QtWidgets import (
     QApplication
@@ -143,30 +146,63 @@ class AppTheme(QObject):
         """
         return QApplication.palette()
 
+    @staticmethod
+    def _system_palette() -> QPalette:
+        """Return the desktop's palette, fixed up where Qt gets it wrong.
+
+        In Windows dark mode Qt's row stripes (``AlternateBase``) are navy,
+        so only that role is set, to grey. Every other role stays unset and
+        keeps following the desktop. Whether it's dark mode comes from
+        ``color_scheme``, so a picked theme counts, not just the desktop's.
+
+        Returns:
+            QPalette: The palette for ``'System'``, and for every theme on
+            Windows.
+        """
+        base_palette = QPalette()
+        if sys.platform == "win32":
+            scheme = AppTheme.color_scheme()
+            if scheme == Qt.ColorScheme.Dark:
+                base_palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#383838"))
+        return base_palette
+        
+
     def _on_theme_change(self):
-        """Pass a desktop scheme change on, if the theme follows the desktop."""
+        """Follow a desktop scheme change, if the theme is ``'System'``.
+
+        Reapplies the system palette, so the Windows stripe fix matches the
+        new scheme, then emits ``theme_changed``.
+        """
         if read_setting('theme') == "System":
+            QApplication.setPalette(self._system_palette())
             self.theme_changed.emit()
 
     def change_theme(self):
         """Apply the saved theme setting to the application.
 
-        ``'Light'`` and ``'Dark'`` set Shrewnut's own palette, ``'System'``
-        hands the desktop's palette back. Qt is asked for the matching
-        scheme either way, for platform themes that honor it. Emits
-        ``theme_changed``.
+        Qt is always asked for the matching scheme first. ``'System'``
+        hands the desktop's palette back. ``'Light'`` and ``'Dark'`` set
+        Shrewnut's own palette, except on Windows, where Qt follows the
+        request and the desktop's palette is used for them too. Windows dark
+        mode gets grey row stripes either way. Emits ``theme_changed``.
         """
         theme = read_setting('theme')
         match theme:
             case 'System': 
                 QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Unknown)
-                QApplication.setPalette(QPalette())
+                QApplication.setPalette(self._system_palette())
             case 'Light':
                 QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Light)
-                QApplication.setPalette(_build_palette(LIGHT_COLORS, LIGHT_DISABLED_COLORS))
+                if sys.platform == "win32":
+                    QApplication.setPalette(self._system_palette())
+                else:
+                    QApplication.setPalette(_build_palette(LIGHT_COLORS, LIGHT_DISABLED_COLORS))
             case 'Dark': 
                 QApplication.instance().styleHints().setColorScheme(Qt.ColorScheme.Dark)
-                QApplication.setPalette(_build_palette(DARK_COLORS, DARK_DISABLED_COLORS))
+                if sys.platform == "win32":
+                    QApplication.setPalette(self._system_palette())
+                else:
+                    QApplication.setPalette(_build_palette(DARK_COLORS, DARK_DISABLED_COLORS))
         self.theme_changed.emit()
 
 def _build_palette(colors: dict, disabled_colors: dict) -> QPalette:

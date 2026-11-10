@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -5,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
+from shrewnut import theme
 from shrewnut.settings import update_setting
 from shrewnut.theme import (
     DARK_COLORS, DARK_DISABLED_COLORS, LIGHT_COLORS, LIGHT_DISABLED_COLORS, AppTheme,
@@ -20,6 +22,17 @@ def _collect(app_theme):
     heard = []
     app_theme.theme_changed.connect(lambda: heard.append(1))
     return heard
+
+
+def _pinned_roles():
+    palette = QApplication.palette()
+    return [role.name for role in QPalette.ColorRole if role != QPalette.ColorRole.NColorRoles
+            and any(palette.isBrushSet(group, role) for group in
+                    (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive, QPalette.ColorGroup.Disabled))]
+
+
+def _stripes():
+    return QApplication.palette().color(QPalette.ColorRole.AlternateBase).name()
 
 
 def _system_says(scheme):
@@ -102,11 +115,7 @@ def test_going_back_to_system_hands_the_palette_back():
     update_setting("theme", "System")
     app_theme.change_theme()
 
-    palette = QApplication.palette()
-    pinned = [role.name for role in QPalette.ColorRole if role != QPalette.ColorRole.NColorRoles
-              and any(palette.isBrushSet(group, role) for group in
-                      (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive, QPalette.ColorGroup.Disabled))]
-    assert pinned == []
+    assert _pinned_roles() == []
 
 
 @pytest.mark.parametrize("theme, scheme", [
@@ -161,3 +170,117 @@ def test_a_desktop_switch_is_none_of_our_business_when_a_theme_is_picked(theme):
     QApplication.instance().styleHints().colorSchemeChanged.emit(Qt.ColorScheme.Dark)
 
     assert heard == []
+
+
+# --- Windows row stripes ---
+
+WINDOWS_GREY = "#383838"  # Qt 6.12 hands Fusion navy (#001a68) in Windows dark mode instead
+
+
+@pytest.fixture
+def on_windows(monkeypatch):
+    # Pretend to be Windows for theme.py only. conftest hands the palette
+    # back afterwards, so the stripes don't haunt the next test.
+    monkeypatch.setattr(theme, "sys", SimpleNamespace(platform="win32"))
+
+
+def _desktop_switches_to(scheme):
+    # Offscreen Qt never switches on its own, so play the desktop: fake the
+    # new answer and fire the signal Windows would fire. Grab the real signal
+    # first, once styleHints is patched it hands out the mock's instead.
+    switched = QApplication.instance().styleHints().colorSchemeChanged
+    with _system_says(scheme):
+        switched.emit(scheme)
+    QApplication.processEvents()
+
+
+def test_windows_dark_mode_gets_grey_stripes_instead_of_navy(on_windows):
+    update_setting("theme", "System")
+
+    with _system_says(Qt.ColorScheme.Dark):
+        AppTheme().change_theme()
+
+    assert _stripes() == WINDOWS_GREY
+
+
+def test_windows_dark_mode_only_touches_the_stripes(on_windows):
+    # Everything else still comes from Windows. Pinning the whole palette
+    # would freeze it, and the next desktop switch would only half happen.
+    update_setting("theme", "System")
+
+    with _system_says(Qt.ColorScheme.Dark):
+        AppTheme().change_theme()
+
+    assert _pinned_roles() == ["AlternateBase"]
+
+
+def test_windows_light_mode_keeps_its_own_stripes(on_windows):
+    update_setting("theme", "System")
+
+    with _system_says(Qt.ColorScheme.Light):
+        AppTheme().change_theme()
+
+    assert _pinned_roles() == []
+
+
+def test_desktop_going_light_hands_the_stripes_back_to_windows(on_windows):
+    # The grey override outlives the switch unless someone takes it off.
+    # Without that, light mode would wear #383838 stripes on white like a
+    # zebra in mourning.
+    update_setting("theme", "System")
+    app_theme = AppTheme()
+    with _system_says(Qt.ColorScheme.Dark):
+        app_theme.change_theme()
+
+    _desktop_switches_to(Qt.ColorScheme.Light)
+
+    assert _pinned_roles() == []
+
+
+def test_desktop_going_dark_gets_grey_stripes_too(on_windows):
+    # Starting in light and switching later is the same navy problem,
+    # it just shows up after lunch instead of at startup.
+    update_setting("theme", "System")
+    app_theme = AppTheme()
+    with _system_says(Qt.ColorScheme.Light):
+        app_theme.change_theme()
+
+    _desktop_switches_to(Qt.ColorScheme.Dark)
+
+    assert _stripes() == WINDOWS_GREY
+
+
+def test_picking_light_on_windows_looks_like_windows_light(on_windows):
+    # Windows actually listens to setColorScheme, so Light is Windows' own
+    # light palette, accent colour and all. Shrewnut's palette would just
+    # make Light and System-light look like distant cousins. The desktop
+    # says Dark to prove the pick wins.
+    update_setting("theme", "Light")
+
+    with _system_says(Qt.ColorScheme.Dark):
+        AppTheme().change_theme()
+
+    assert _pinned_roles() == []
+
+
+def test_picking_dark_on_windows_still_gets_grey_stripes(on_windows):
+    # Windows' dark palette, navy stripes and all, unless we step in. The
+    # desktop says Light to prove the stripes follow the pick, not the desktop.
+    update_setting("theme", "Dark")
+
+    with _system_says(Qt.ColorScheme.Light):
+        AppTheme().change_theme()
+
+    assert _pinned_roles() == ["AlternateBase"]
+    assert _stripes() == WINDOWS_GREY
+
+
+def test_other_platforms_keep_their_own_stripes(monkeypatch):
+    # Linux takes its colours from KDE or GNOME, which get this right.
+    monkeypatch.setattr(theme, "sys", SimpleNamespace(platform="linux"))
+    update_setting("theme", "System")
+
+    with _system_says(Qt.ColorScheme.Dark):
+        AppTheme().change_theme()
+
+    assert _pinned_roles() == []
