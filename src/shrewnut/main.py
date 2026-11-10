@@ -1,6 +1,7 @@
 """Application entry point and main window."""
 
 import sys
+import os
 import humanize
 from pathlib import Path
 import importlib.metadata
@@ -1024,7 +1025,9 @@ def _log_unhandled_exception(exc_type: type[BaseException], exc_value: BaseExcep
 def main():
     """Start the application and show the main window.
 
-    Logging goes to ``shrewnut.log`` in the ``logs`` folder of the config
+    Inside a Flatpak, Qt's desktop file name is set to the Flatpak app ID,
+    so Wayland matches the window to its launcher entry instead of seeing
+    ``python3``. Logging goes to ``shrewnut.log`` in the ``logs`` folder of the config
     directory, which rolls over at 2 MB and keeps three old files. The
     excepthook is installed once logging is set up, then the first entry
     records the Shrewnut, OS, Python and Qt versions and whether this is
@@ -1033,6 +1036,9 @@ def main():
     aside, or couldn't be opened or created.
     """
     app = QApplication(sys.argv)
+    flatpak_id = os.environ.get("FLATPAK_ID")
+    if flatpak_id is not None:
+        app.setDesktopFileName(flatpak_id)
     app.setStyle('Fusion')
     app.setWindowIcon(get_logo())
     try:

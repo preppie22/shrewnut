@@ -20,6 +20,8 @@ modules:
     build-commands:
       - pip3 install --prefix=/app --no-cache-dir requests PySide6-Essentials platformdirs humanize pywebview
       - pip3 install --prefix=/app --no-cache-dir --no-deps .
+      - install -Dm644 packaging/flatpak/io.github.preppie22.Shrewnut.desktop /app/share/applications/io.github.preppie22.Shrewnut.desktop
+      - install -Dm644 src/shrewnut/icons/shrewnut.svg /app/share/icons/hicolor/scalable/apps/io.github.preppie22.Shrewnut.svg
     sources:
       - type: dir
         path: ../..

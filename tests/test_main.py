@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import humanize
 import pytest
@@ -1511,7 +1511,7 @@ class _MainRun:
     """Runs main() with the window, the event loop and basicConfig faked out,
     and keeps what basicConfig was handed and which hook was live by then."""
 
-    def __init__(self, monkeypatch):
+    def __init__(self, monkeypatch, window=None):
         monkeypatch.setattr(sys, "excepthook", sys.excepthook)  # put back whatever was there after the test
         self.config = None
         self.hook_during_setup = None
@@ -1519,7 +1519,7 @@ class _MainRun:
         monkeypatch.setattr(shrewnut_main.logging, "basicConfig", self._basic_config)
         monkeypatch.setattr(shrewnut_main, "setup_download_log", self.download_log)
         monkeypatch.setattr(shrewnut_main, "QApplication", MagicMock())
-        monkeypatch.setattr(shrewnut_main, "MainWindow", MagicMock())
+        monkeypatch.setattr(shrewnut_main, "MainWindow", window or MagicMock())
         with patch("sys.exit"):
             shrewnut_main.main()
 
@@ -1582,6 +1582,36 @@ def test_main_opens_the_log_with_who_is_running_what(monkeypatch, caplog):
     assert f"Python {platform.python_version()}" in startup
     assert f"Qt {qVersion()}" in startup
     assert "frozen=False" in startup
+
+
+# --- Flatpak: telling Wayland who we are ---
+
+def _desktop_file_names_when_the_window_appeared(monkeypatch):
+    # The window's app ID is fixed when the window is made, so a late
+    # setDesktopFileName is as good as none. Record what Qt had been told by then.
+    seen = []
+
+    def make_window():
+        seen.extend(shrewnut_main.QApplication.return_value.setDesktopFileName.call_args_list)
+        return MagicMock()
+
+    _MainRun(monkeypatch, window=MagicMock(side_effect=make_window)).close()
+    return seen
+
+
+def test_flatpak_window_answers_to_the_app_id(monkeypatch):
+    # Without it the window introduces itself as "python3", and desktops that
+    # go by app ID alone file Shrewnut under a generic icon with no name.
+    monkeypatch.setenv("FLATPAK_ID", "io.github.preppie22.Shrewnut")
+
+    assert _desktop_file_names_when_the_window_appeared(monkeypatch) == [call("io.github.preppie22.Shrewnut")]
+
+
+def test_outside_flatpak_qt_keeps_its_own_name(monkeypatch):
+    # The AppImage and the Windows exe are already called shrewnut. Leave them be.
+    monkeypatch.delenv("FLATPAK_ID", raising=False)
+
+    assert _desktop_file_names_when_the_window_appeared(monkeypatch) == []
 
 
 # --- #31: opening offline with a login more than an hour old ---

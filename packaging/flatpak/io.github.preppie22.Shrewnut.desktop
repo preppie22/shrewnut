@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Shrewnut
+Comment=GOG library backup tool
+Exec=shrewnut
+Icon=io.github.preppie22.Shrewnut
+Categories=Game;
+Keywords=GOG;backup;download;installer;
