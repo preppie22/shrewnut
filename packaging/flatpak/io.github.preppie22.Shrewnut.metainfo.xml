@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.preppie22.Shrewnut</id>
+  
+  <name>Shrewnut</name>
+  <summary>Back up your GOG game library</summary>
+  <developer id="io.github.preppie22">
+    <name>Piyush Puranik</name>
+  </developer>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <url type="homepage">https://github.com/preppie22/shrewnut</url>
+  <url type="bugtracker">https://github.com/preppie22/shrewnut/issues</url>
+  <url type="vcs-browser">https://github.com/preppie22/shrewnut</url>
+  
+  <recommends>
+    <display_length compare="ge">1024</display_length>
+    <internet>always</internet>
+  </recommends>
+  
+  <description>
+    <p>
+      Shrewnut is a GUI application that allows you to batch download installers, DLCs, and bonus content for games in your GOG library.
+    </p>
+    <ul>
+      <li>Add multiple games and DLCs to the queue at any time</li>
+      <li>Downloads multiple games concurrently</li>
+      <li>Download only what you want: Installers, Bonus Content (extras), Patches</li>
+      <li>Supports downloading content in specific languages</li>
+      <li>Pause downloads when your internet drops or disk is full without losing progress</li>
+      <li>Auto-resume when internet reconnects after a drop</li>
+      <li>Prevents files from being re-downloaded if they are already on disk</li>
+      <li>Dark mode and light mode support</li>
+    </ul>
+    <p>
+      <em>Disclaimer:</em> Shrewnut is unofficial and not affiliated with GOG.
+    </p>
+  </description>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#1f7a74</color>
+    <color type="primary" scheme_preference="dark">#165c57</color>
+  </branding>
+  
+  <launchable type="desktop-id">io.github.preppie22.Shrewnut.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Several games downloading at once</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/light_2_downloading.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Pick where and what to download</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/light_1_settings.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Pause and pick up where you left off</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/light_3_paused.png</image>
+    </screenshot>
+
+    <screenshot environment="plasma:dark">
+      <caption>Several games downloading at once</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/dark_2_downloading.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>Pick where and what to download</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/dark_1_settings.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>Pause and pick up where you left off</caption>
+      <image>https://raw.githubusercontent.com/preppie22/shrewnut/v2026.11.10/docs/screenshots/dark_3_paused.png</image>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1"/>
+  <releases type="external"/>
+</component>

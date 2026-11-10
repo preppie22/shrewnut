@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<releases>
+  <release version="2026.11.10" date="2026-11-10">
+    <description>
+      <p>
+        First stable release. New icons throughout that follow the light and dark themes, and picking Light or Dark now works on desktops that used to ignore it.
+        Refreshing the library also drops games you no longer own and leftover DLCs, and the AppImage now starts without libfuse2.
+      </p>
+    </description>
+    <url>https://github.com/preppie22/shrewnut/releases/tag/v2026.11.10</url>
+  </release>
+</releases>
