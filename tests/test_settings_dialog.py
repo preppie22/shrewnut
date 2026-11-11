@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -490,3 +491,75 @@ def test_discard_restores_the_saved_reconnect_minutes():
     click(dialog, QDialogButtonBox.StandardButton.Discard)
 
     assert dialog.reconnect_minutes_edit.value() == 5
+
+
+# --- Update check interval (#37) ---
+
+def test_dialog_shows_the_saved_update_interval():
+    settings.update_settings({**SAVED_SETTINGS, "check_update_hours": 24})
+
+    dialog = SettingsDialog()
+
+    assert dialog.check_updates_edit.value() == 24
+    assert dialog.check_updates_edit.text() == "24 hr"
+
+
+def test_settings_from_before_the_update_check_show_the_default():
+    # Settings saved by an older Shrewnut have never heard of
+    # check_update_hours. They get the default, not a crash.
+    old = {k: v for k, v in settings.DEFAULT_SETTINGS.items() if k != "check_update_hours"}
+    paths.config_file_path(paths.ConfigFile.SETTINGS).write_text(json.dumps(old))
+
+    dialog = SettingsDialog()
+
+    assert dialog.check_updates_edit.value() == settings.DEFAULT_SETTINGS["check_update_hours"] == 12
+
+
+def test_save_persists_the_update_interval():
+    dialog = SettingsDialog()
+    dialog.check_updates_edit.setValue(48)
+
+    click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    assert settings._read_settings()["check_update_hours"] == 48
+
+
+def test_zero_hours_reads_off_and_saves_a_plain_zero():
+    # "0 hr" sounds like "check constantly". It means the opposite.
+    dialog = SettingsDialog()
+    dialog.check_updates_edit.setValue(0)
+
+    assert dialog.check_updates_edit.text() == "Off"
+
+    click(dialog, QDialogButtonBox.StandardButton.Save)
+
+    assert settings._read_settings()["check_update_hours"] == 0
+
+
+def test_update_interval_tops_out_at_99_hours():
+    # Four days and change. Anyone wanting less nagging than that can
+    # just switch it off.
+    dialog = SettingsDialog()
+    dialog.check_updates_edit.setValue(500)
+
+    assert dialog.check_updates_edit.value() == 99
+
+
+def test_restore_defaults_resets_the_update_interval_without_saving():
+    settings.update_settings({**SAVED_SETTINGS, "check_update_hours": 24})
+    dialog = SettingsDialog()
+
+    click(dialog, QDialogButtonBox.StandardButton.RestoreDefaults)
+
+    assert dialog.check_updates_edit.value() == settings.DEFAULT_SETTINGS["check_update_hours"]
+    assert settings._read_settings()["check_update_hours"] == 24
+
+
+def test_discard_restores_the_saved_update_interval():
+    settings.update_settings({**SAVED_SETTINGS, "check_update_hours": 24})
+    dialog = SettingsDialog()
+    dialog.check_updates_edit.setValue(3)
+
+    click(dialog, QDialogButtonBox.StandardButton.Discard)
+
+    assert dialog.check_updates_edit.value() == 24

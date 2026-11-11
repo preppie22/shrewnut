@@ -84,6 +84,15 @@ class SettingsDialog(QDialog):
         self.reconnect_minutes_edit.setSpecialValueText("Off")
         self.window_layout.addRow("Auto Reconnect", self.reconnect_minutes_edit)
 
+        # Check Updates
+        self.check_updates_edit = QSpinBox()
+        self.check_updates_edit.setMinimum(0)
+        self.check_updates_edit.setMaximum(99)
+        self.check_updates_edit.setSuffix(" hr")
+        self.check_updates_edit.setSpecialValueText("Off")
+        self.check_updates_edit.setToolTip("How often to check for a new Shrewnut version at startup")
+        self.window_layout.addRow("Check for Shrewnut Updates", self.check_updates_edit)
+
         # Platform Filter
         self.platform_filter_layout = QHBoxLayout()
         self.platform_filter_check = {
@@ -170,6 +179,7 @@ class SettingsDialog(QDialog):
         self.download_edit_path.setText(form_settings.get('download_path'))
         self.download_concurrency_edit.setValue(form_settings.get('download_concurrency'))
         self.reconnect_minutes_edit.setValue(form_settings.get('reconnect_minutes'))
+        self.check_updates_edit.setValue(form_settings.get('check_update_hours'))
         platform_filters = form_settings.get('platform_filter') or settings.DEFAULT_SETTINGS['platform_filter']
         for checkbox in self.platform_filter_check.items():
             if checkbox[0] in platform_filters:
@@ -211,6 +221,7 @@ class SettingsDialog(QDialog):
                 'download_path': self.download_edit_path.text(),
                 'download_concurrency': self.download_concurrency_edit.value(),
                 'reconnect_minutes': self.reconnect_minutes_edit.value(),
+                'check_update_hours': self.check_updates_edit.value(),
                 'platform_filter': [checkbox[0] for checkbox in self.platform_filter_check.items() if checkbox[1].isChecked()],
                 # 'verify_downloads': self.verify_downloads_check.isChecked(),
                 'installers': self.download_categories_check['installers'].isChecked(),

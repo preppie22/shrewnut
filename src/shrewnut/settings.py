@@ -61,7 +61,8 @@ DEFAULT_SETTINGS = {
     'bonus_content': False,
     'patches': True,
     'languages': ['en'],
-    'theme': 'System'
+    'theme': 'System',
+    'check_update_hours': 12 
 }
 
 def _create_settings() -> bool:
