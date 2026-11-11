@@ -235,12 +235,26 @@ def test_token_exchange_failure_is_its_own_exit_code(install_webview, not_frozen
 
 @pytest.mark.parametrize("platform, gui", [("linux", "gtk"), ("win32", "edgechromium")])
 def test_picks_the_platform_webview(install_webview, not_frozen, monkeypatch, platform, gui):
+    # Running the suite from a Flatpak'd IDE shouldn't flip every platform to Qt.
+    monkeypatch.delenv("FLATPAK_ID", raising=False)
     monkeypatch.setattr(sys, "platform", platform)
     webview = install_webview(scenario="close_after_page_loads")
 
     LoginWindow().start_helper()
 
     assert webview.start_kwargs["gui"] == gui
+
+
+def test_flatpak_uses_qt_webengine(install_webview, not_frozen, monkeypatch):
+    # The KDE runtime brings no WebKitGTK to the party, so asking for GTK in
+    # there is asking a fish to climb a tree.
+    monkeypatch.setenv("FLATPAK_ID", "io.github.preppie22.Shrewnut")
+    monkeypatch.setattr(sys, "platform", "linux")
+    webview = install_webview(scenario="close_after_page_loads")
+
+    LoginWindow().start_helper()
+
+    assert webview.start_kwargs["gui"] == "qt"
 
 
 def test_frozen_linux_points_gi_at_only_the_typelib_dirs_that_exist(monkeypatch, tmp_path):

@@ -1,7 +1,9 @@
 id: io.github.preppie22.Shrewnut
-runtime: org.gnome.Platform
-runtime-version: '50'
-sdk: org.gnome.Sdk
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+base: io.qt.PySide.BaseApp
+base-version: '6.11'
 command: shrewnut
 finish-args:
   - --share=network
@@ -11,6 +13,11 @@ finish-args:
   - --device=dri
   - --filesystem=xdg-download
   - --filesystem=xdg-config/kdeglobals:ro
+  - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
+  - --env=QTWEBENGINE_DICTIONARIES_PATH=/app/qtwebengine_dictionaries
+build-options:
+  env:
+    BASEAPP_DISABLE_NUMPY: '1'
 modules:
   - name: shrewnut
     buildsystem: simple
@@ -18,12 +25,14 @@ modules:
       build-args:
         - --share=network
     build-commands:
-      - pip3 install --prefix=/app --no-cache-dir requests PySide6-Essentials platformdirs humanize pywebview
+      - pip3 install --prefix=/app --no-cache-dir requests platformdirs humanize pywebview qtpy
       - pip3 install --prefix=/app --no-cache-dir --no-deps .
       - install -Dm644 packaging/flatpak/io.github.preppie22.Shrewnut.desktop /app/share/applications/io.github.preppie22.Shrewnut.desktop
       - install -Dm644 src/shrewnut/icons/shrewnut.svg /app/share/icons/hicolor/scalable/apps/io.github.preppie22.Shrewnut.svg
       - install -Dm644 packaging/flatpak/io.github.preppie22.Shrewnut.metainfo.xml /app/share/metainfo/io.github.preppie22.Shrewnut.metainfo.xml
       - install -Dm644 packaging/flatpak/io.github.preppie22.Shrewnut.releases.xml /app/share/metainfo/releases/io.github.preppie22.Shrewnut.releases.xml
+    
+
     sources:
       - type: dir
         path: ../..
@@ -33,3 +42,5 @@ modules:
           - .git
           - build
           - .flatpak-builder
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh

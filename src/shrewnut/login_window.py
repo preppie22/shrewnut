@@ -1,7 +1,8 @@
 """GOG login helper that runs in its own process.
 
 Shows GOG's login page in pywebview, using the system's own web view
-(Edge WebView2 on Windows, WebKitGTK on Linux). Qt and the web view both
+(Edge WebView2 on Windows, WebKitGTK on Linux), or QtWebEngine from the
+PySide BaseApp inside the Flatpak. Qt and the web view both
 want the main thread, so the main window starts this as a separate
 process and only reads its exit code. The helper exchanges the code for a
 token and saves it itself.
@@ -102,6 +103,9 @@ class LoginWindow():
         login success page. The thread is a daemon, so closing the window
         early doesn't leave the process waiting on it.
 
+        Inside the Flatpak (``FLATPAK_ID`` set) the window uses pywebview's
+        Qt backend, since the KDE runtime has no WebKitGTK.
+
         In the frozen Linux build, ``GI_TYPELIB_PATH`` lists every typelib
         folder the distro has, since the bundled libgirepository only
         looks in Debian's.
@@ -113,7 +117,10 @@ class LoginWindow():
             logging in, and ``EXIT_NO_WEBVIEW`` if there is no working web
             view or GOG's page couldn't be loaded.
         """
-        gui = "edgechromium" if sys.platform == "win32" else "gtk"
+        if os.environ.get("FLATPAK_ID"):
+            gui = "qt"
+        else:
+            gui = "edgechromium" if sys.platform == "win32" else "gtk"
         if getattr(sys, "frozen", False) and sys.platform.startswith("linux"):
             found = [d for d in TYPELIB_DIRS if Path(d).is_dir()]
             os.environ["GI_TYPELIB_PATH"] = os.pathsep.join(found)
