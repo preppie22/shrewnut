@@ -586,33 +586,43 @@ class MainWindow(QMainWindow):
             )
 
     def open_about_page(self):
-        """Show the about page."""
+        """Show the about page.
+
+        The About Qt button closes the about page like any other button.
+        About Qt then opens over the main window, and the about page comes
+        back once it closes. Only OK ends it.
+        """
         version = importlib.metadata.version("shrewnut")
-        about_page = QMessageBox(self)
-        about_page.setWindowTitle("About Shrewnut")
-        about_page.setIconPixmap(get_logo().pixmap(64, 64))
-        about_page.setText(f"""
-        <h3>Shrewnut</h3>
-        <p><small>Formerly GogStash</small></p>
-        <p>Version {version}</p>
-        <p>A desktop GUI for downloading and backing up your GOG.com game library.</p>
-        <p>
-        <a href="https://github.com/preppie22/shrewnut">Project page</a> &middot;
-        <a href="https://github.com/preppie22/shrewnut/issues">Report a bug</a>
-        </p>
-        <p>Copyright &copy; 2026 Piyush Puranik<br>
-        Released under the <a href="https://github.com/preppie22/shrewnut/blob/main/LICENSE">MIT License</a>.</p>
-        <p><small>Shrewnut is not affiliated with or endorsed by GOG.com or CD PROJEKT.
-        Built with Qt via PySide6, licensed under the LGPL (see About Qt).</small></p>
-        """)
-        about_page.setTextFormat(Qt.TextFormat.RichText)
-        about_page.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        about_qt_button = QPushButton("About Qt")
-        about_page.addButton(about_qt_button, QMessageBox.ButtonRole.ActionRole)
-        about_qt_button.clicked.disconnect()
-        about_qt_button.clicked.connect(lambda: QMessageBox.aboutQt(self))
-        about_page.addButton(QMessageBox.StandardButton.Ok)
-        about_page.exec()
+        while True:
+            about_page = QMessageBox(self)
+            about_page.setWindowTitle("About Shrewnut")
+            about_page.setIconPixmap(get_logo().pixmap(64, 64))
+            about_page.setText(f"""
+            <h3>Shrewnut</h3>
+            <p><small>Formerly GogStash</small></p>
+            <p>Version {version}</p>
+            <p>A desktop GUI for downloading and backing up your GOG.com game library.</p>
+            <p>
+            <a href="https://github.com/preppie22/shrewnut">Project page</a> &middot;
+            <a href="https://github.com/preppie22/shrewnut/issues">Report a bug</a>
+            </p>
+            <p>Copyright &copy; 2026 Piyush Puranik<br>
+            Released under the <a href="https://github.com/preppie22/shrewnut/blob/main/LICENSE">MIT License</a>.</p>
+            <p><small>Shrewnut is not affiliated with or endorsed by GOG.com or CD PROJEKT.
+            Built with Qt via PySide6, licensed under the LGPL (see About Qt).</small></p>
+            """)
+            about_page.setTextFormat(Qt.TextFormat.RichText)
+            about_page.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+            about_qt_button = QPushButton("About Qt")
+            about_page.addButton(about_qt_button, QMessageBox.ButtonRole.ActionRole)
+            about_page.addButton(QMessageBox.StandardButton.Ok)
+            about_page.exec()
+            about_qt_clicked = about_page.clickedButton() is about_qt_button
+            about_page.deleteLater()
+            if about_qt_clicked:
+                QMessageBox.aboutQt(self)
+            else:
+                break
 
     def fetch_games(self):
         """Refresh the library from GOG in a background thread."""

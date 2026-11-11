@@ -384,24 +384,34 @@ def test_open_settings_constructs_and_executes_dialog(mock_settings_dialog_cls):
     mock_settings_dialog_cls.return_value.exec.assert_called_once()
 
 
-def _answer_about_page(then=None):
+def _answer_about_page(*presses):
     # About is a modal exec(), so whoever closes it has to be waiting in the
-    # event loop already. Polls until the box shows up, optionally does
-    # something with it, then presses OK. Gives up after a couple of
+    # event loop already. Each time the box shows up, presses the next button
+    # named in `presses`, then OK once the list runs out. Returns the list of
+    # what got pressed, filled in as it goes. Gives up after a couple of
     # seconds, so a box that never opens doesn't leave a timer lurking
     # around to press OK on some later test's dialog.
     deadline = time.monotonic() + 2
+    todo = list(presses)
+    pressed = []
 
     def poll():
         box = QApplication.activeModalWidget()
         if isinstance(box, QMessageBox) and box.windowTitle() == "About Shrewnut":
-            if then:
-                then(box)
-            box.accept()
-        elif time.monotonic() < deadline:
+            if todo:
+                name = todo.pop(0)
+                pressed.append(name)
+                next(b for b in box.buttons() if b.text() == name).click()
+                QTimer.singleShot(20, poll)  # it'll be back, keep watching
+            else:
+                pressed.append("OK")
+                box.button(QMessageBox.StandardButton.Ok).click()
+            return
+        if time.monotonic() < deadline:
             QTimer.singleShot(20, poll)
 
     QTimer.singleShot(0, poll)
+    return pressed
 
 
 def test_about_page_closes_without_taking_the_app_with_it():
@@ -422,20 +432,29 @@ def test_about_page_closes_without_taking_the_app_with_it():
     assert QApplication.activeModalWidget() is None
 
 
-def test_about_qt_opens_over_the_main_window_not_the_about_box():
-    # The fix for the crash above, pinned down: the About Qt slot only
-    # knows the main window, so there's no cycle back to the About box for
-    # the collector to trip over.
+def test_about_qt_steps_aside_then_brings_the_about_box_back():
+    # Regression: inside the Flatpak (Qt 6.11.3 on the KDE runtime), OK in
+    # About Qt also closed the About box, even with the About Qt button
+    # unplugged from the box. Now the About box bows out on purpose, lets
+    # About Qt have the stage, and takes it back for an encore.
     window = MainWindow()
+    modal_during_about_qt = []
 
-    def press_about_qt(box):
-        next(b for b in box.buttons() if b.text() == "About Qt").click()
-
-    with patch.object(QMessageBox, "aboutQt") as mock_about_qt:
-        _answer_about_page(then=press_about_qt)
+    with patch.object(QMessageBox, "aboutQt",
+                      side_effect=lambda parent: modal_during_about_qt.append(QApplication.activeModalWidget())
+                      ) as mock_about_qt:
+        pressed = _answer_about_page("About Qt")
         window.open_about_page()
 
+    # Parented to the main window, so there's no cycle back to the About box
+    # for Python 3.14's collector to trip over.
     mock_about_qt.assert_called_once_with(window)
+    # Nothing modal was left for About Qt to hide behind.
+    assert modal_during_about_qt == [None]
+    # The About box came back for a second round and only OK ended it.
+    assert pressed == ["About Qt", "OK"]
+    assert QApplication.activeModalWidget() is None
+
 
 
 @patch("shrewnut.library_db.LibraryFetchThread")
