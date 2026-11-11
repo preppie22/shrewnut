@@ -11,6 +11,7 @@ class ConfigFile(StrEnum):
     SETTINGS = 'settings.json'
     DB_CACHE = 'goglibrary.db'
     TOKEN = 'token.json'
+    UPDATE_CHECK = 'update_check.json'
 
 class LogFile(StrEnum):
     """Names of the files kept in the ``logs`` folder of the config directory."""
