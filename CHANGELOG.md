@@ -9,7 +9,8 @@ suffix until the first stable release), not SemVer.
 ## [Unreleased]
 
 ### Added
-- The status bar links to a newer Shrewnut when one is out. It checks at startup, and with the new Check for Updates button. How often, or Off, is set in Settings ([#37](https://github.com/preppie22/shrewnut/issues/37))
+- The status bar links to a newer Shrewnut when one is out. It checks at startup, and from Help > Check for Updates. How often, or Off, is set in Settings ([#37](https://github.com/preppie22/shrewnut/issues/37))
+- A File and Help menu bar
 
 ## [2026.11.10] - 2026-11-10
 

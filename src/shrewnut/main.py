@@ -215,6 +215,9 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.update_notification)
         self.main_toolbar = self.addToolBar("Main")
         self.main_toolbar.setMovable(False)
+
+        self.file_menu = self.menuBar().addMenu("&File")
+        self.help_menu = self.menuBar().addMenu("&Help")
         
         # Login
         self.login_menu = QMenu(self)
@@ -270,10 +273,8 @@ class MainWindow(QMainWindow):
         self.download_window.busy_changed.connect(self._on_quit_pending)
 
         # Check Update
-        self.check_update_button = QAction("Check for Updates", self, icon=get_icon('check_update.svg'))
-        self.check_update_button.setProperty('iconFile', 'check_update.svg')
+        self.check_update_button = QAction("Check for Updates", self)
         self.check_update_button.triggered.connect(lambda: self.check_update(force=True))
-        self.main_toolbar.addAction(self.check_update_button)
 
         # Theme
         self.theme_toggle_group = QActionGroup(self)
@@ -366,6 +367,20 @@ class MainWindow(QMainWindow):
 
         # Add Download Window
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea,self.left_dock)
+
+        # Add Menu Items
+        self.help_menu.addAction(self.check_update_button)
+        self.help_menu.addSeparator()
+        self.help_menu.addAction(self.about_button)
+
+        self.file_menu.addAction(self.open_downloads_button)
+        self.file_menu.addAction(self.settings_button)
+        self.file_menu.addSeparator()
+        self.close_action = QAction("Close", self, icon=get_icon('x.svg'))
+        self.close_action.setProperty('iconFile', 'x.svg')
+        self.close_action.triggered.connect(self.close)
+        self.close_action.setShortcut(QKeySequence.StandardKey.Quit)
+        self.file_menu.addAction(self.close_action)
         
         # Init Stuff
         self._update_login_status()
@@ -473,7 +488,9 @@ class MainWindow(QMainWindow):
         for item in (self.main_toolbar.actions() + 
                      self.login_menu.actions() + 
                      self.button_layout.buttons() +
-                     self.theme_toggle_group.actions()
+                     self.theme_toggle_group.actions() +
+                     self.file_menu.actions() +
+                     self.help_menu.actions()
                     ):
             icon_file = item.property('iconFile')
             if icon_file:
@@ -575,7 +592,7 @@ class MainWindow(QMainWindow):
 
         The startup check uses the ``check_update_hours`` setting as the
         cache age and does nothing when it's 0 (Off). A forced check, from
-        the Check for Updates button, always asks GitHub, even when the
+        Help > Check for Updates, always asks GitHub, even when the
         setting is Off. A call while a check is still running is ignored.
         ``_on_app_update_fetched`` or ``_on_app_update_error`` handles the
         result.
@@ -857,8 +874,8 @@ class MainWindow(QMainWindow):
     def _on_app_update_error(self, error_msg: str):
         """Log a failed update check, and say so if the user asked for it.
 
-        Only a check from the Check for Updates button shows a warning,
-        with the reason under its details. A failed startup check is only
+        Only a check from Help > Check for Updates shows a warning, with
+        the reason under its details. A failed startup check is only
         logged, so being offline at launch stays quiet.
 
         Args:

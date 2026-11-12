@@ -728,7 +728,7 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     # theme picker itself, which would be embarrassing to leave in the wrong
     # colors, and the menus hanging off Login and Theme. The Shrewnut logo
     # in the Login menu stays home: an acorn looks the same in any light.
-    # Check for Updates came last, and gets no special treatment for it.
+    # Then the menu bar moved in, and Close brought its own x along.
     mock_get_icon.return_value = _non_null_icon()
     window = MainWindow()
     mock_get_icon.reset_mock()
@@ -739,7 +739,7 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     assert called_files == {
         "login.svg", "logout.svg", "fetch.svg", "download_folder.svg", "settings.svg", "theme_mode.svg",
         "info.svg", "enqueue.svg", "external_browser.svg", "moon.svg", "sun.svg",
-        "check_update.svg",
+        "x.svg",
     }
 
 
@@ -2452,3 +2452,33 @@ def test_quitting_waits_for_a_running_update_check():
 
     assert not window.update_checker.isRunning()
     QApplication.processEvents()  # deliver the answer here, not in some unsuspecting later test
+
+
+# --- Menu bar ---
+
+def test_menu_bar_has_file_and_help_with_their_actions():
+    # Check for Updates lives under Help, where nobody mistakes it for
+    # "are my games out of date".
+    window = MainWindow()
+
+    menus = {action.text(): action.menu() for action in window.menuBar().actions()}
+    assert list(menus) == ["&File", "&Help"]
+    assert [a for a in menus["&File"].actions() if not a.isSeparator()] == [
+        window.open_downloads_button, window.settings_button, window.close_action]
+    assert [a for a in menus["&Help"].actions() if not a.isSeparator()] == [
+        window.check_update_button, window.about_button]
+    assert window.check_update_button not in window.main_toolbar.actions()
+
+
+def test_close_from_the_file_menu_goes_through_close_event():
+    # The menu's Close is the same front door as the window's X, download
+    # question and all.
+    window = MainWindow()
+    window.show()
+
+    with patch.object(MainWindow, "closeEvent", autospec=True,
+                      side_effect=lambda self, event: event.accept()) as mock_close_event:
+        window.close_action.trigger()
+
+    mock_close_event.assert_called_once()
+    assert not window.isVisible()
