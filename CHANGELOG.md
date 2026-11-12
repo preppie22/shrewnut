@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are CalVer-based (`YYYY.M.D` plus an `-alpha`/`-beta`/`-rc` stage
 suffix until the first stable release), not SemVer.
 
+## [Unreleased]
+
+### Added
+- The status bar links to a newer Shrewnut when one is out. It checks at startup, and with the new Check for Updates button. How often, or Off, is set in Settings ([#37](https://github.com/preppie22/shrewnut/issues/37))
+
 ## [2026.11.10] - 2026-11-10
 
 ### Changed

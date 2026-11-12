@@ -15,12 +15,82 @@ import time
 from datetime import datetime, timedelta
 import json
 
+from PySide6.QtCore import (
+    QThread,
+    Signal
+)
+
 from shrewnut.constants import HTTP_TIMEOUT
 from shrewnut.paths import ConfigFile, config_file_path
 
 log = logging.getLogger(__name__)
 
 RELEASES_URL = "https://api.github.com/repos/preppie22/shrewnut/releases"
+
+class UpdateCheckFailed(Exception):
+    """GitHub couldn't be asked, or its answer wasn't a list of releases."""
+    pass
+
+class FetchAppUpdate(QThread):
+    """Runs ``get_latest_release`` off the GUI thread.
+
+    One instance is reused for every check: set ``cache_timeout``,
+    ``prerelease`` and ``force_fetch``, then call ``start()``. Each run
+    emits exactly one of the two signals.
+
+    Attributes:
+        fetched_update (Signal(str, str)): Emitted when the check worked,
+            with the newer release's version and page URL, or two empty
+            strings if nothing newer was found.
+        error (Signal(str)): Emitted instead of ``fetched_update`` when the
+            check failed, with the reason.
+        prerelease (bool): Whether betas count on the next run.
+        force_fetch (bool): Whether the next run asks GitHub even if the
+            cache is fresh.
+    """
+    fetched_update = Signal(str, str)
+    error = Signal(str)
+
+    def __init__(self, *, cache_timeout: timedelta = timedelta(hours=12), prerelease: bool = False, force_fetch: bool = False, parent = None):
+        """Create the thread with the settings for its first run.
+
+        Args:
+            cache_timeout (timedelta, optional): How long a cached answer
+                is used. Defaults to 12 hours.
+            prerelease (bool, optional): Whether betas count. Defaults to
+                False.
+            force_fetch (bool, optional): Ask GitHub even if the cache is
+                fresh. Defaults to False.
+            parent (QObject, optional): Owner of the thread.
+        """
+        super().__init__(parent)
+        self._cache_timeout = cache_timeout
+        self.prerelease = prerelease
+        self.force_fetch = force_fetch
+
+    @property
+    def cache_timeout(self):
+        """timedelta: How long a cached answer is used on the next run.
+
+        Set it in hours, as the ``check_update_hours`` setting stores it.
+        """
+        return self._cache_timeout
+
+    @cache_timeout.setter
+    def cache_timeout(self, value: int):
+        self._cache_timeout = timedelta(hours=value)
+
+    def run(self):
+        """Run the check and emit its result, or the reason it failed."""
+        try:
+            release_data = get_latest_release(cache_timeout=self._cache_timeout, prerelease=self.prerelease, force_fetch=self.force_fetch)
+        except (UpdateCheckFailed, ValueError) as e:
+            self.error.emit(str(e))
+            return
+        if release_data:
+            self.fetched_update.emit(release_data[0], release_data[1])
+            return
+        self.fetched_update.emit("", "")
 
 def get_latest_release(*, cache_timeout: timedelta = timedelta(hours=12), prerelease: bool = False, force_fetch: bool = False) -> tuple[str, str] | None:
     """Find out whether GitHub has a newer release than the one running.
@@ -39,8 +109,9 @@ def get_latest_release(*, cache_timeout: timedelta = timedelta(hours=12), prerel
     tag isn't a version, or that has no page URL, is skipped and logged.
     Only an answer with at least one usable release is cached. Being
     offline, an error from GitHub (such as its hourly limit) or an answer
-    that isn't a list of releases returns None instead of raising, and is
-    logged.
+    that isn't a list of releases is logged and raises
+    ``UpdateCheckFailed``. An answer with no usable releases at all
+    returns None.
 
     Args:
         cache_timeout (timedelta, optional): How long a cached answer is
@@ -53,9 +124,12 @@ def get_latest_release(*, cache_timeout: timedelta = timedelta(hours=12), prerel
     Returns:
         tuple[str, str] | None: The newer release's version and the URL
         of its release page, or None if the running version is the same
-        or newer, or the check failed.
+        or newer.
 
     Raises:
+        UpdateCheckFailed: If GitHub couldn't be asked or its answer
+            wasn't a list of releases. A failed request is kept as the
+            cause.
         ValueError: If the installed Shrewnut's own version isn't a valid
             PEP 440 version.
     """
@@ -82,10 +156,10 @@ def get_latest_release(*, cache_timeout: timedelta = timedelta(hours=12), prerel
             releases = response.json()
             if not isinstance(releases, list):
                 log.warning("unexpected response from GitHub api")
-                return None
+                raise UpdateCheckFailed("Unexpected response from GitHub api")
         except requests.RequestException as e:
             log.warning(f"could not fetch release: {str(e)}")
-            return None
+            raise UpdateCheckFailed(str(e)) from e
         for release in releases:
             try:
                 version = Version(release['tag_name'])

@@ -5,6 +5,7 @@ import platform
 import sys
 import threading
 import time
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
@@ -15,7 +16,7 @@ from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QTextDocument
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
 
-from shrewnut import gog_auth, library_db, manifest
+from shrewnut import gog_auth, library_db, manifest, updates
 from shrewnut.login_window import ExitCode
 from shrewnut.download_window import DownloadState
 from shrewnut import main as shrewnut_main
@@ -727,6 +728,7 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     # theme picker itself, which would be embarrassing to leave in the wrong
     # colors, and the menus hanging off Login and Theme. The Shrewnut logo
     # in the Login menu stays home: an acorn looks the same in any light.
+    # Check for Updates came last, and gets no special treatment for it.
     mock_get_icon.return_value = _non_null_icon()
     window = MainWindow()
     mock_get_icon.reset_mock()
@@ -737,6 +739,7 @@ def test_color_scheme_refresh_reloads_each_toolbar_action_and_button_from_its_ow
     assert called_files == {
         "login.svg", "logout.svg", "fetch.svg", "download_folder.svg", "settings.svg", "theme_mode.svg",
         "info.svg", "enqueue.svg", "external_browser.svg", "moon.svg", "sun.svg",
+        "check_update.svg",
     }
 
 
@@ -2266,3 +2269,186 @@ def test_quitting_waits_for_a_running_store_lookup(mock_open_url):
     # Deliver the answer now, while openUrl is still a fake. Left in the
     # queue, it pops up in whichever later test pumps events first.
     QApplication.processEvents()
+
+
+# --- Update check (#37) ---
+
+def _finish_update_check(window):
+    # Same dance as the store lookup: wait for the thread, then let the
+    # event loop hand over its queued answer.
+    window.update_checker.wait()
+    QApplication.processEvents()
+
+
+def test_update_notice_starts_hidden_and_survives_status_messages():
+    # A permanent widget, so a showMessage() elsewhere can't cover up
+    # the one bit of news the user might actually want.
+    window = MainWindow()
+    assert window.update_notification.isHidden()
+
+    window.show()
+    window._on_app_update_fetched("2026.12.1", "https://example.com/v2026.12.1")
+    window.statusBar().showMessage("Something else entirely")
+    QApplication.processEvents()
+
+    assert window.update_notification.isVisible()
+
+
+def test_main_runs_the_startup_update_check(monkeypatch):
+    window_cls = MagicMock()
+    run = _MainRun(monkeypatch, window=window_cls)
+    run.close()
+
+    window = window_cls.return_value
+    window.check_update.assert_called_once_with()  # the startup kind, not the button's force=True
+    # Shown first, so a slow or quiet GitHub never holds up the window.
+    assert [name for name, *_ in window.method_calls if name in ("show", "check_update")] == ["show", "check_update"]
+
+
+@patch("shrewnut.updates.get_latest_release")
+def test_startup_check_is_skipped_entirely_when_turned_off(mock_check):
+    # 0 means Off. Handed to the check as a 0 hour cache it would mean
+    # "ask GitHub every single launch", which is the opposite of off.
+    update_setting("check_update_hours", 0)
+    window = MainWindow()
+
+    window.check_update()
+
+    assert not window.update_checker.isRunning()
+    mock_check.assert_not_called()
+
+
+@patch("shrewnut.updates.get_latest_release", return_value=None)
+def test_startup_check_uses_the_setting_as_hours_of_cache(mock_check):
+    update_setting("check_update_hours", 6)
+    window = MainWindow()
+
+    window.check_update()
+    _finish_update_check(window)
+
+    mock_check.assert_called_once_with(cache_timeout=timedelta(hours=6), prerelease=False, force_fetch=False)
+
+
+@patch("shrewnut.updates.get_latest_release", return_value=None)
+def test_check_button_asks_github_even_when_startup_checks_are_off(mock_check):
+    update_setting("check_update_hours", 0)
+    window = MainWindow()
+
+    window.check_update_button.trigger()
+    _finish_update_check(window)
+
+    assert mock_check.call_args.kwargs["force_fetch"] is True
+
+
+@patch("shrewnut.updates.get_latest_release", return_value=None)
+def test_startup_check_after_the_button_goes_back_to_the_cache(mock_check):
+    # force_fetch is the thread's own attribute, so the button's True
+    # mustn't stick around for the next ordinary check.
+    window = MainWindow()
+
+    window.check_update(force=True)
+    _finish_update_check(window)
+    window.check_update()
+    _finish_update_check(window)
+
+    assert [c.kwargs["force_fetch"] for c in mock_check.call_args_list] == [True, False]
+
+
+@patch("shrewnut.main.QDesktopServices.openUrl", return_value=True)
+@patch("shrewnut.updates.get_latest_release",
+       return_value=("2026.12.1", "https://github.com/preppie22/shrewnut/releases/tag/v2026.12.1"))
+def test_newer_release_shows_a_link_that_opens_its_page(mock_check, mock_open_url):
+    url = "https://github.com/preppie22/shrewnut/releases/tag/v2026.12.1"
+    window = MainWindow()
+
+    window.check_update()
+    _finish_update_check(window)
+
+    notice = window.update_notification
+    assert not notice.isHidden()
+    assert "Shrewnut 2026.12.1 is available" in notice.text()
+    assert f'href="{url}"' in notice.text()
+
+    notice.linkActivated.emit(url)
+
+    [opened] = mock_open_url.call_args.args
+    assert opened.toString() == url
+
+
+@patch("shrewnut.updates.get_latest_release", return_value=None)
+def test_nothing_newer_says_up_to_date(mock_check):
+    window = MainWindow()
+
+    window.check_update()
+    _finish_update_check(window)
+
+    assert not window.update_notification.isHidden()
+    assert window.update_notification.text() == "Shrewnut up to date"
+
+
+@patch("shrewnut.main.QMessageBox")
+@patch("shrewnut.updates.get_latest_release",
+       side_effect=updates.UpdateCheckFailed("GitHub went for a walk"))
+def test_failed_startup_check_stays_quiet(mock_check, mock_box, caplog):
+    # Offline at launch is nobody's emergency. A dialog every time the VPN
+    # hiccups would get the app uninstalled faster than any bug.
+    window = MainWindow()
+
+    with caplog.at_level(logging.INFO, logger="shrewnut.main"):
+        window.check_update()
+        _finish_update_check(window)
+
+    mock_box.assert_not_called()
+    assert window.update_notification.isHidden()
+    assert "GitHub went for a walk" in caplog.text
+
+
+@patch("shrewnut.main.QMessageBox")
+@patch("shrewnut.updates.get_latest_release",
+       side_effect=updates.UpdateCheckFailed("GitHub went for a walk"))
+def test_failed_check_from_the_button_says_so(mock_check, mock_box):
+    # They clicked a button and asked a question. Silence isn't an answer.
+    window = MainWindow()
+
+    window.check_update_button.trigger()
+    _finish_update_check(window)
+
+    mock_box.assert_called_once()
+    assert mock_box.call_args.args[1] == "Update Check Failed"
+    assert mock_box.call_args.kwargs["detailedText"] == "GitHub went for a walk"
+    mock_box.return_value.exec.assert_called_once()
+    assert window.update_notification.isHidden()
+
+
+def test_second_check_while_one_is_running_is_ignored():
+    calls = []
+    release = threading.Event()
+
+    def slow_check(**kwargs):
+        calls.append(kwargs["force_fetch"])
+        release.wait(5)
+
+    window = MainWindow()
+    with patch("shrewnut.updates.get_latest_release", side_effect=slow_check):
+        window.check_update()
+        window.check_update(force=True)
+        release.set()
+        _finish_update_check(window)
+
+    assert calls == [False]
+
+
+def test_quitting_waits_for_a_running_update_check():
+    # Same deal as the store lookup: a QThread destroyed mid-run takes the
+    # whole app down with it, on the way out no less.
+    release = threading.Event()
+    window = MainWindow()
+    with patch("shrewnut.updates.get_latest_release", side_effect=lambda **_: release.wait(5) and None):
+        window.check_update()
+        assert window.update_checker.isRunning()
+        threading.Timer(0.05, release.set).start()  # a Qt timer would never fire while close() blocks in wait()
+
+        window.close()
+
+    assert not window.update_checker.isRunning()
+    QApplication.processEvents()  # deliver the answer here, not in some unsuspecting later test

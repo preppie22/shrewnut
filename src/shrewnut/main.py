@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QMenu,
     QToolButton,
-    QLineEdit,
+    QLineEdit
 )
 from PySide6.QtGui import (
     QAction,
@@ -67,6 +67,7 @@ from shrewnut.icon_utils import get_icon, get_logo, status_indicator
 from shrewnut.paths import LogFile, log_file_path, migrate_config
 from shrewnut.log_setup import setup_logging, setup_download_log
 from shrewnut.theme import AppTheme
+from shrewnut.updates import FetchAppUpdate
 
 log = logging.getLogger(__name__)
 
@@ -179,6 +180,9 @@ class MainWindow(QMainWindow):
         self.error_message = QErrorMessage()
         self.store_lookup = GetProductURL(self)
         self.store_lookup.fetched_url.connect(self._on_store_url)
+        self.update_checker = FetchAppUpdate(parent=self)
+        self.update_checker.fetched_update.connect(self._on_app_update_fetched)
+        self.update_checker.error.connect(self._on_app_update_error)
 
         # Login Helper Process
         self.login_process = QProcess(self)
@@ -200,11 +204,15 @@ class MainWindow(QMainWindow):
         self.status_text.linkActivated.connect(self._update_login_status)
         self.status_progress = QProgressBar()
         self.status_progress.setVisible(False)
+        self.update_notification = QLabel()
+        self.update_notification.setVisible(False)
+        self.update_notification.linkActivated.connect(self.open_url)
         self.statusBar()
         self.statusBar().setSizeGripEnabled(False)
         self.statusBar().addWidget(self.logged_in_indicator)
         self.statusBar().addWidget(self.status_text)
         self.statusBar().addWidget(self.status_progress)
+        self.statusBar().addPermanentWidget(self.update_notification)
         self.main_toolbar = self.addToolBar("Main")
         self.main_toolbar.setMovable(False)
         
@@ -260,6 +268,12 @@ class MainWindow(QMainWindow):
 
         self.download_window.busy_changed.connect(self._on_busy_changed)
         self.download_window.busy_changed.connect(self._on_quit_pending)
+
+        # Check Update
+        self.check_update_button = QAction("Check for Updates", self, icon=get_icon('check_update.svg'))
+        self.check_update_button.setProperty('iconFile', 'check_update.svg')
+        self.check_update_button.triggered.connect(lambda: self.check_update(force=True))
+        self.main_toolbar.addAction(self.check_update_button)
 
         # Theme
         self.theme_toggle_group = QActionGroup(self)
@@ -416,6 +430,8 @@ class MainWindow(QMainWindow):
         """
         if self.download_window.connection_check.isRunning():
             self.download_window.connection_check.wait()
+        if self.update_checker.isRunning():
+            self.update_checker.wait()
         if self.store_lookup.isRunning():
             self.store_lookup.wait()
         if self.quit_pending and self._threads_busy():
@@ -553,6 +569,33 @@ class MainWindow(QMainWindow):
                 "No URL Handler",
                 "Your system does not have a way to open web URLs."
             )
+
+    def check_update(self, force: bool = False):
+        """Start checking GitHub for a newer Shrewnut in the background.
+
+        The startup check uses the ``check_update_hours`` setting as the
+        cache age and does nothing when it's 0 (Off). A forced check, from
+        the Check for Updates button, always asks GitHub, even when the
+        setting is Off. A call while a check is still running is ignored.
+        ``_on_app_update_fetched`` or ``_on_app_update_error`` handles the
+        result.
+
+        Args:
+            force (bool, optional): Skip the cache and the Off setting.
+                Defaults to False.
+        """
+        if self.update_checker.isRunning():
+            return
+        if force:
+            self.update_checker.force_fetch = True
+        else:
+            self.update_checker.force_fetch = False
+            cache_timeout = read_setting('check_update_hours')
+            if cache_timeout == 0:
+                return
+            else:
+                self.update_checker.cache_timeout = cache_timeout
+        self.update_checker.start()
 
     def open_folder(self, folder_path: Path):
         """Open a folder in the system file manager.
@@ -792,6 +835,46 @@ class MainWindow(QMainWindow):
         self.status_progress.setVisible(False)
         self.fetch_games_button.setDisabled(False)
 
+    def _on_app_update_fetched(self, version: str, url: str):
+        """Show the update check's result on the right of the status bar.
+
+        A newer release shows as a link to its release page, which
+        ``open_url`` opens. Otherwise the status bar says Shrewnut is up
+        to date.
+
+        Args:
+            version (str): The newer release's version, or an empty string
+                if there is none.
+            url (str): The newer release's page, or an empty string.
+        """
+        if not version:
+            self.update_notification.setVisible(True)
+            self.update_notification.setText("Shrewnut up to date")
+        else:
+            self.update_notification.setVisible(True)
+            self.update_notification.setText(f'<a href="{url}">Shrewnut {version} is available</a>')
+
+    def _on_app_update_error(self, error_msg: str):
+        """Log a failed update check, and say so if the user asked for it.
+
+        Only a check from the Check for Updates button shows a warning,
+        with the reason under its details. A failed startup check is only
+        logged, so being offline at launch stays quiet.
+
+        Args:
+            error_msg (str): Why the check failed.
+        """
+        log.info(f"could not check for updates: {error_msg}")
+        if self.update_checker.force_fetch:
+            QMessageBox(
+                QMessageBox.Icon.Warning,
+                "Update Check Failed",
+                "Could not check for updates",
+                QMessageBox.StandardButton.Ok,
+                parent=self,
+                detailedText=error_msg
+            ).exec()
+            
     def _on_fetch_finished(self):
         """Close the window if a quit was waiting for the library refresh.
 
@@ -1092,6 +1175,7 @@ def main():
         ).exec()
     window = MainWindow()
     window.show()
+    window.check_update()
     sys.exit(app.exec())
 
 if __name__ == "__main__":

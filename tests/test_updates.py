@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from contextlib import suppress
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -200,11 +201,17 @@ def test_nothing_usable_returns_none(installed, github, entry):
     requests.ConnectionError("no network, no problem"),
     requests.Timeout("GitHub is thinking very hard"),
 ])
-def test_offline_or_slow_github_returns_none(installed, github, error):
+def test_offline_or_slow_github_raises_update_check_failed(installed, github, error):
     installed.return_value = "2026.11.10"
     github.side_effect = error
 
-    assert updates.get_latest_release() is None
+    with pytest.raises(updates.UpdateCheckFailed) as failure:
+        updates.get_latest_release()
+
+    # The message goes into the dialog's details; the original stays
+    # attached for anyone reading a traceback.
+    assert str(error) in str(failure.value)
+    assert failure.value.__cause__ is error
 
 
 @pytest.mark.parametrize("status_code, body", [
@@ -212,21 +219,23 @@ def test_offline_or_slow_github_returns_none(installed, github, error):
     (404, {"message": "Not Found", "status": "404"}),
     (500, {"message": "Server Error"}),
 ])
-def test_github_error_returns_none(installed, github, status_code, body):
+def test_github_error_raises_update_check_failed(installed, github, status_code, body):
     # GitHub's errors are JSON too, just not a list of releases.
     installed.return_value = "2026.11.10"
     github.return_value = make_response(body, status_code=status_code)
 
-    assert updates.get_latest_release() is None
+    with pytest.raises(updates.UpdateCheckFailed, match=str(status_code)):
+        updates.get_latest_release()
 
 
-def test_html_instead_of_json_returns_none(installed, github):
+def test_html_instead_of_json_raises_update_check_failed(installed, github):
     # What you get from the web page URL instead of the API one.
     installed.return_value = "2026.11.10"
     github.return_value = make_response("<!DOCTYPE html><html>a lovely page</html>",
                                         content_type="text/html; charset=utf-8")
 
-    assert updates.get_latest_release() is None
+    with pytest.raises(updates.UpdateCheckFailed):
+        updates.get_latest_release()
 
 
 def test_failures_are_logged_as_warnings(installed, github, caplog):
@@ -234,20 +243,22 @@ def test_failures_are_logged_as_warnings(installed, github, caplog):
     github.side_effect = requests.ConnectionError("cable chewed by shrew")
 
     with caplog.at_level(logging.WARNING, logger="shrewnut.updates"):
-        updates.get_latest_release()
+        with pytest.raises(updates.UpdateCheckFailed):
+            updates.get_latest_release()
 
     assert "cable chewed by shrew" in caplog.text
 
 
 @pytest.mark.parametrize("body", [None, 5, "hi", {"message": "hi"}],
                          ids=["null", "number", "string", "object"])
-def test_answer_that_isnt_a_list_returns_none(installed, github, body):
+def test_answer_that_isnt_a_list_raises_update_check_failed(installed, github, body):
     # Something between us and GitHub (a proxy, a captive portal) can
     # answer 200 with JSON that has nothing to do with releases.
     installed.return_value = "2026.11.10"
     github.return_value = make_response(json.dumps(body))
 
-    assert updates.get_latest_release() is None
+    with pytest.raises(updates.UpdateCheckFailed, match="Unexpected response"):
+        updates.get_latest_release()
 
 
 def test_positional_arguments_are_refused():
@@ -299,7 +310,8 @@ def test_failed_check_is_not_cached(installed, github, cache_file, failure):
     installed.return_value = "2026.11.10"
     github.configure_mock(**failure)
 
-    updates.get_latest_release()
+    with suppress(updates.UpdateCheckFailed):
+        updates.get_latest_release()
 
     assert not cache_file.exists()
 
@@ -414,3 +426,87 @@ def test_unwritable_cache_still_returns_the_answer(installed, github, tmp_path):
 
     with patch("shrewnut.updates.config_file_path", return_value=tmp_path / "nope" / "update_check.json"):
         assert updates.get_latest_release() == ("2026.12.3", page("v2026.12.3"))
+
+
+# The thread that runs the check off the UI thread
+
+def _run_checker(checker):
+    # Straight call to run(), same thread, so the signals land right away.
+    fetched, errors = [], []
+    checker.fetched_update.connect(lambda version, url: fetched.append((version, url)))
+    checker.error.connect(errors.append)
+    checker.run()
+    return fetched, errors
+
+
+def test_checker_announces_a_newer_release(installed, github):
+    installed.return_value = "2026.11.10"
+    github.return_value = releases("v2026.12.1")
+
+    fetched, errors = _run_checker(updates.FetchAppUpdate())
+
+    assert fetched == [("2026.12.1", page("v2026.12.1"))]
+    assert errors == []
+
+
+def test_checker_says_nothing_new_with_empty_strings(installed, github):
+    # A str signal can't carry None, so "" is the official shrug.
+    installed.return_value = "2026.12.1"
+    github.return_value = releases("v2026.12.1")
+
+    fetched, errors = _run_checker(updates.FetchAppUpdate())
+
+    assert fetched == [("", "")]
+    assert errors == []
+
+
+@pytest.mark.parametrize("failure", [
+    {"side_effect": requests.ConnectionError("shrew in the router")},
+    {"return_value": make_response({"message": "rate limited"}, status_code=403)},
+    {"return_value": make_response({"message": "a captive portal says hi"})},
+], ids=["offline", "github error", "not a list"])
+def test_checker_reports_a_failed_check_as_an_error_only(installed, github, failure):
+    # Only the error signal. A stray ("", "") after it would tell the user
+    # they're up to date when nobody actually checked.
+    installed.return_value = "2026.11.10"
+    github.configure_mock(**failure)
+
+    fetched, errors = _run_checker(updates.FetchAppUpdate())
+
+    assert fetched == []
+    assert len(errors) == 1 and errors[0]
+
+
+def test_checker_reports_a_malformed_installed_version_instead_of_dying(installed, github):
+    installed.return_value = "not-a-version"
+
+    fetched, errors = _run_checker(updates.FetchAppUpdate())
+
+    assert fetched == []
+    assert errors == ["version string in project metadata is malformed"]
+
+
+def test_checker_passes_its_settings_through():
+    checker = updates.FetchAppUpdate(prerelease=True, force_fetch=True)
+    checker.cache_timeout = 3
+
+    with patch("shrewnut.updates.get_latest_release", return_value=None) as mock_check:
+        checker.run()
+
+    mock_check.assert_called_once_with(cache_timeout=timedelta(hours=3), prerelease=True, force_fetch=True)
+
+
+def test_checker_cache_timeout_is_set_in_hours():
+    # The setting is a spinbox of hours. Three of them, not three days,
+    # not three microseconds.
+    checker = updates.FetchAppUpdate()
+    assert checker.cache_timeout == timedelta(hours=12)
+
+    checker.cache_timeout = 3
+
+    assert checker.cache_timeout == timedelta(hours=3)
+
+
+def test_checker_takes_keyword_arguments_only():
+    with pytest.raises(TypeError):
+        updates.FetchAppUpdate(None)
